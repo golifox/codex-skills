@@ -1,0 +1,4 @@
+interface:
+  display_name: "Konsierge MCP Incident"
+  short_description: "Исследование сбоев MCP и marketplace"
+  default_prompt: "Use $konsierge-mcp-incident to investigate the supplied dialogue and evidence, identify the proven failing boundary, and propose the safest next action."

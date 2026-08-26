@@ -1,0 +1,4 @@
+interface:
+  display_name: "Konsierge Project Setup"
+  short_description: "Настройка Ruby, gems и Compose-сервисов"
+  default_prompt: "Use $konsierge-project-setup to prepare this Konsierge project and report required environment variables."
