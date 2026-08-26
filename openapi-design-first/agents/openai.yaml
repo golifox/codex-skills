@@ -1,0 +1,4 @@
+interface:
+  display_name: "OpenAPI Design First"
+  short_description: "Build and verify design-first OpenAPI contracts"
+  default_prompt: "Use $openapi-design-first to create a verified OpenAPI contract for this API."

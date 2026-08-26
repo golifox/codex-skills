@@ -1,0 +1,4 @@
+interface:
+  display_name: "API Documentation"
+  short_description: "Write API docs that match code and contracts"
+  default_prompt: "Use $api-documentation to reconcile and improve this API documentation."

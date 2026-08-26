@@ -1,0 +1,4 @@
+interface:
+  display_name: "Konsierge MCP"
+  short_description: "Build and upgrade Konsierge MCP gems and Rails producers"
+  default_prompt: "Use $konsierge-mcp to implement, review, or upgrade a Konsierge MCP gem or Rails MCP producer contract."

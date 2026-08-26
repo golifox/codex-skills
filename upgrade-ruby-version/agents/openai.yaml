@@ -1,0 +1,4 @@
+interface:
+  display_name: "Upgrade Ruby Version"
+  short_description: "Upgrade Ruby safely across project files"
+  default_prompt: "Use $upgrade-ruby-version to upgrade this project to a new Ruby version and run every available verification check."

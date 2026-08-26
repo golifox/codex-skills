@@ -1,0 +1,4 @@
+interface:
+  display_name: "RTK Terminal"
+  short_description: "Сокращает шумный вывод команд терминала"
+  default_prompt: "Use $rtk to run and summarize terminal commands efficiently."

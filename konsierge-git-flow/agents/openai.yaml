@@ -1,0 +1,10 @@
+interface:
+  display_name: "Konsierge Git Flow"
+  short_description: "Deliver Konsierge branches and verify deploys"
+  default_prompt: "Use $konsierge-git-flow to commit this work in its KON branch, merge both targets, push dev and verify staging before pushing master, then verify production through GitLab MCP."
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "gitlab"
+      description: "GitLab pipelines, jobs, environments, and deployments"

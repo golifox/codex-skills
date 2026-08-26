@@ -1,0 +1,4 @@
+interface:
+  display_name: "Prerelease"
+  short_description: "Prepare gems and projects for release"
+  default_prompt: "Use $prerelease to prepare the current project for release and provide a commit message."
