@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+readonly REPOSITORY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+readonly REMOTE_NAME="origin"
+readonly BRANCH_NAME="master"
+
+usage() {
+  cat <<'USAGE'
+Usage: bin/codex-skills <command>
+
+Commands:
+  status  Show the current and remote skill revisions.
+  update  Fast-forward to origin/master after ensuring the checkout is clean.
+USAGE
+}
+
+ensure_repository() {
+  if ! git -C "$REPOSITORY_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    printf 'codex-skills: %s is not a Git repository\n' "$REPOSITORY_DIR" >&2
+    exit 1
+  fi
+
+  if ! git -C "$REPOSITORY_DIR" remote get-url "$REMOTE_NAME" >/dev/null 2>&1; then
+    printf 'codex-skills: missing Git remote %s\n' "$REMOTE_NAME" >&2
+    exit 1
+  fi
+}
+
+ensure_clean_worktree() {
+  if [[ -n "$(git -C "$REPOSITORY_DIR" status --porcelain --untracked-files=all)" ]]; then
+    printf 'codex-skills: checkout has local changes; resolve or commit them before updating\n' >&2
+    exit 1
+  fi
+}
+
+validate_skills() {
+  local validator="$REPOSITORY_DIR/.system/skill-creator/scripts/quick_validate.py"
+  local skill_directory
+
+  if [[ ! -f "$validator" ]]; then
+    printf 'codex-skills: validator unavailable; skipped skill validation\n' >&2
+    return
+  fi
+
+  for skill_directory in "$REPOSITORY_DIR"/*; do
+    [[ -f "$skill_directory/SKILL.md" ]] || continue
+    python3 "$validator" "$skill_directory" >/dev/null
+  done
+}
+
+show_status() {
+  ensure_repository
+  git -C "$REPOSITORY_DIR" fetch --quiet "$REMOTE_NAME" "$BRANCH_NAME"
+
+  printf 'current=%s\n' "$(git -C "$REPOSITORY_DIR" rev-parse HEAD)"
+  printf 'remote=%s\n' "$(git -C "$REPOSITORY_DIR" rev-parse "$REMOTE_NAME/$BRANCH_NAME")"
+}
+
+update() {
+  ensure_repository
+  ensure_clean_worktree
+  git -C "$REPOSITORY_DIR" fetch --quiet "$REMOTE_NAME" "$BRANCH_NAME"
+
+  if [[ "$(git -C "$REPOSITORY_DIR" rev-parse HEAD)" == "$(git -C "$REPOSITORY_DIR" rev-parse "$REMOTE_NAME/$BRANCH_NAME")" ]]; then
+    printf 'codex-skills: already up to date\n'
+    exit 0
+  fi
+
+  git -C "$REPOSITORY_DIR" merge --ff-only "$REMOTE_NAME/$BRANCH_NAME"
+  validate_skills
+  printf 'codex-skills: updated to %s\n' "$(git -C "$REPOSITORY_DIR" rev-parse HEAD)"
+}
+
+case "${1:-}" in
+  status)
+    show_status
+    ;;
+  update)
+    update
+    ;;
+  -h|--help|help)
+    usage
+    ;;
+  *)
+    usage >&2
+    exit 2
+    ;;
+esac
