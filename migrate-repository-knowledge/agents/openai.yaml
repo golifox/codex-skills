@@ -1,0 +1,3 @@
+interface:
+  display_name: "Migrate Repository Knowledge"
+  short_description: "Migrate existing docs into the Konsierge knowledge protocol"
