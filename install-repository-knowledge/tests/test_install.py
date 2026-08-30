@@ -136,15 +136,26 @@ class InstallTest(unittest.TestCase):
         self.assertEqual(content.count(END), 1)
 
     def test_divergent_owned_file_blocks_all_apply(self) -> None:
-        self.write(self.root / "docs/sources/manifest.json", "local content\n")
+        self.write(self.root / "docs/repository-knowledge.md", "local content\n")
         before = self.tree_digest()
 
         result = self.run_installer("--apply")
 
         self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
         self.assertEqual(before, self.tree_digest())
-        self.assertIn("CONFLICT docs/sources/manifest.json", result.stdout)
+        self.assertIn("CONFLICT docs/repository-knowledge.md", result.stdout)
         self.assertFalse((self.root / "AGENTS.md").exists())
+
+    def test_modified_manifest_is_preserved_on_reapply(self) -> None:
+        self.assertEqual(self.run_installer("--apply").returncode, 0)
+        manifest = self.root / "docs/sources/manifest.json"
+        changed = '{"version": 1, "sources": [{"kind": "fixture"}]}\n'
+        self.write(manifest, changed)
+
+        result = self.run_installer("--apply")
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(manifest.read_text(encoding="utf-8"), changed)
 
     def test_malformed_managed_block_blocks_all_apply(self) -> None:
         self.write(self.root / "AGENTS.md", f"local\n{START}\nunterminated\n")
@@ -179,13 +190,38 @@ class InstallTest(unittest.TestCase):
         self.assertFalse(any(outside_directory.iterdir()))
         self.assertFalse((self.root / "AGENTS.md").exists())
 
+    def test_non_directory_parent_blocks_all_apply(self) -> None:
+        self.write(self.root / "docs", "not a directory\n")
+        before = self.tree_digest()
+
+        result = self.run_installer("--apply")
+
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertEqual(before, self.tree_digest())
+        self.assertFalse((self.root / "AGENTS.md").exists())
+
+    def test_identical_linter_is_made_executable(self) -> None:
+        linter = self.root / "bin/docs-lint"
+        linter.parent.mkdir(parents=True)
+        linter.write_bytes((SKILL_ROOT / "scripts/docs_lint.py").read_bytes())
+        linter.chmod(0o644)
+
+        result = self.run_installer("--apply")
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertTrue(os.access(linter, os.X_OK))
+        self.assertEqual(
+            linter.read_bytes(),
+            (SKILL_ROOT / "scripts/docs_lint.py").read_bytes(),
+        )
+
     def test_plan_api_reports_conflicts(self) -> None:
-        self.write(self.root / ".repository-knowledge.json", "divergent\n")
+        self.write(self.root / "docs/repository-knowledge.md", "divergent\n")
 
         plan = self.load_installer().plan_install(self.root, SKILL_ROOT)
 
         self.assertEqual(len(plan.conflicts), 1)
-        self.assertEqual(plan.conflicts[0].path, ".repository-knowledge.json")
+        self.assertEqual(plan.conflicts[0].path, "docs/repository-knowledge.md")
 
 
 if __name__ == "__main__":

@@ -315,6 +315,28 @@ def validate_tags(
                     f"invalid registry tag: {tag}",
                 )
             )
+        raw_owner = entry.group("owner")
+        parsed_owner = urlsplit(raw_owner)
+        owner_target = (
+            registry_path.parent / unquote(parsed_owner.path)
+        ).resolve()
+        if (
+            parsed_owner.scheme
+            or parsed_owner.netloc
+            or not parsed_owner.path
+            or parsed_owner.path.startswith("/")
+            or not is_within(owner_target, root)
+            or owner_target not in managed
+            or not owner_target.is_file()
+        ):
+            issues.append(
+                Issue(
+                    "error",
+                    "invalid-tag-owner",
+                    relative_name(root, registry_path),
+                    f"tag owner must be a managed relative page: {raw_owner}",
+                )
+            )
     for tag, count in registered.items():
         if count > 1:
             issues.append(
@@ -335,9 +357,9 @@ def validate_tags(
         content = read_text(path)
         if content is None:
             continue
-        validate_knowledge_tag_position(root, path, content, issues)
         if path in ignored_markdown:
             continue
+        validate_knowledge_tag_position(root, path, content, issues)
         for candidate in tag_candidates(content):
             if TAG_PATTERN.fullmatch(candidate) is None:
                 issues.append(

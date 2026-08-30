@@ -214,6 +214,15 @@ class DocsLintTest(unittest.TestCase):
 
         self.assertIn("duplicate-tag", self.issue_codes())
 
+    def test_tag_owner_must_be_a_managed_relative_page(self) -> None:
+        self.write(
+            self.root / "docs/tags.md",
+            "- `@tag:orders/creation` — Order creation — "
+            "owner: [External](https://example.com/orders)\n",
+        )
+
+        self.assertIn("invalid-tag-owner", self.issue_codes())
+
     def test_tag_used_only_in_documentation_is_an_error(self) -> None:
         self.register_tag("@tag:orders/retry")
         with (self.root / "docs/domains/orders.md").open(
@@ -239,6 +248,14 @@ class DocsLintTest(unittest.TestCase):
         )
 
         self.assertIn("misplaced-knowledge-tags", self.issue_codes())
+
+    def test_protocol_may_document_knowledge_tag_syntax(self) -> None:
+        self.write(
+            self.root / "docs/repository-knowledge.md",
+            "# Protocol\n\nExample: `<!-- knowledge-tags: @tag:example -->`\n",
+        )
+
+        self.assertNotIn("misplaced-knowledge-tags", self.issue_codes())
 
     def test_unused_registered_tag_is_a_warning(self) -> None:
         self.register_tag("@tag:orders/retry")

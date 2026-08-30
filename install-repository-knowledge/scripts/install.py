@@ -20,11 +20,14 @@ MARKER_FILES = {
 }
 
 OWNED_FILES = {
-    ".repository-knowledge.json": "assets/repository-knowledge.json",
     "docs/repository-knowledge.md": "assets/repository-knowledge.md",
+    "bin/docs-lint": "scripts/docs_lint.py",
+}
+
+SEED_FILES = {
+    ".repository-knowledge.json": "assets/repository-knowledge.json",
     "docs/sources/index.md": "assets/sources-index.md",
     "docs/sources/manifest.json": "assets/sources-manifest.json",
-    "bin/docs-lint": "scripts/docs_lint.py",
 }
 
 
@@ -76,6 +79,15 @@ def is_git_repository(root: Path) -> bool:
 
 def target_is_safe(root: Path, relative_path: str) -> bool:
     target = root / relative_path
+    ancestor = root
+    for part in Path(relative_path).parent.parts:
+        ancestor /= part
+        if ancestor.is_symlink():
+            resolved = ancestor.resolve()
+            if not is_within(resolved, root) or not resolved.is_dir():
+                return False
+        elif ancestor.exists() and not ancestor.is_dir():
+            return False
     try:
         parent = target.parent.resolve()
     except (OSError, RuntimeError):
@@ -111,8 +123,32 @@ def plan_owned_file(
     except OSError:
         return conflict(relative_path)
     if current == expected:
+        if relative_path == "bin/docs-lint" and not (
+            target.stat().st_mode & 0o111
+        ):
+            return Action(relative_path, "set-executable", expected)
         return Action(relative_path, "unchanged")
     return conflict(relative_path)
+
+
+def plan_seed_file(
+    root: Path, skill_root: Path, relative_path: str, asset_path: str
+) -> Action:
+    target = root / relative_path
+    asset = skill_root / asset_path
+    if not target_is_safe(root, relative_path) or not asset.is_file():
+        return conflict(relative_path)
+    if target.exists():
+        return (
+            Action(relative_path, "unchanged")
+            if target.is_file()
+            else conflict(relative_path)
+        )
+    try:
+        content = asset.read_bytes()
+    except OSError:
+        return conflict(relative_path)
+    return Action(relative_path, "create", content)
 
 
 def insert_block(current: str, block: str) -> str:
@@ -175,6 +211,10 @@ def plan_install(repo: Path, skill_root: Path) -> InstallPlan:
         for path, asset in MARKER_FILES.items()
     ]
     actions.extend(
+        plan_seed_file(root, skill_root, path, asset)
+        for path, asset in SEED_FILES.items()
+    )
+    actions.extend(
         plan_owned_file(root, skill_root, path, asset)
         for path, asset in OWNED_FILES.items()
     )
@@ -208,10 +248,14 @@ def apply_plan(plan: InstallPlan) -> None:
         if action.content is None:
             raise ValueError(f"missing content for {action.path}")
         target = plan.root / action.path
-        if target.exists():
+        if action.path == "bin/docs-lint":
+            mode = (
+                target.stat().st_mode & 0o777 | 0o111
+                if target.exists()
+                else 0o755
+            )
+        elif target.exists():
             mode = target.stat().st_mode & 0o777
-        elif action.path == "bin/docs-lint":
-            mode = 0o755
         else:
             mode = 0o644
         write_atomic(target, action.content, mode)
