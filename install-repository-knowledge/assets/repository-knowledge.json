@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "docs_root": "docs",
+  "managed_roots": [],
+  "excluded_paths": [],
+  "sources_manifest": "docs/sources/manifest.json"
+}
