@@ -95,6 +95,12 @@ class InstallTest(unittest.TestCase):
             (SKILL_ROOT / "assets/repository-knowledge.md").read_bytes(),
         )
 
+    def test_installed_protocol_matches_canonical_reference(self) -> None:
+        self.assertEqual(
+            (SKILL_ROOT / "assets/repository-knowledge.md").read_bytes(),
+            (SKILL_ROOT / "references/protocol.ru.md").read_bytes(),
+        )
+
     def test_second_apply_has_no_changes(self) -> None:
         self.assertEqual(self.run_installer("--apply").returncode, 0)
         before = self.tree_digest()

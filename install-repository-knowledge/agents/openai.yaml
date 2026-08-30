@@ -1,0 +1,3 @@
+interface:
+  display_name: "Install Repository Knowledge"
+  short_description: "Install the Konsierge repository knowledge protocol"

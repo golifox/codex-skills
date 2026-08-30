@@ -493,6 +493,8 @@ def validate_snapshot(
         "version",
         "sha256",
         "distribution",
+        "obtained_from",
+        "obtained_at",
     }
     missing_fields = sorted(required_fields - set(entry))
     display_path = str(entry.get("path", "docs/sources/manifest.json"))
@@ -506,7 +508,14 @@ def validate_snapshot(
             )
         )
         return None, None
-    for field in ("id", "path", "provider", "version"):
+    for field in (
+        "id",
+        "path",
+        "provider",
+        "version",
+        "obtained_from",
+        "obtained_at",
+    ):
         value = entry.get(field)
         if not isinstance(value, str) or not value.strip():
             issues.append(
@@ -600,6 +609,15 @@ def validate_sources(
             )
         )
         return
+    if manifest.get("version") != 1:
+        issues.append(
+            Issue(
+                "error",
+                "invalid-source-manifest",
+                relative_name(root, manifest_path),
+                "manifest version must be 1",
+            )
+        )
 
     entries = [entry for entry in manifest["sources"] if isinstance(entry, dict)]
     if len(entries) != len(manifest["sources"]):
@@ -665,6 +683,30 @@ def validate_sources(
 
     for entry in derived_entries:
         display_path = str(entry.get("path", relative_name(root, manifest_path)))
+        for field in ("path", "source", "source_version", "status"):
+            value = entry.get(field)
+            if not isinstance(value, str) or not value.strip():
+                issues.append(
+                    Issue(
+                        "error",
+                        "invalid-source-entry",
+                        display_path,
+                        f"{field} must be a non-empty string",
+                    )
+                )
+        if entry.get("status") not in {
+            "current",
+            "source-version-mismatch",
+            "review-required",
+        }:
+            issues.append(
+                Issue(
+                    "error",
+                    "invalid-source-entry",
+                    display_path,
+                    "status must be current, source-version-mismatch, or review-required",
+                )
+            )
         derived_path = safe_repository_path(root, entry.get("path"))
         if derived_path is None or not derived_path.is_file():
             issues.append(

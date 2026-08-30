@@ -279,6 +279,8 @@ class DocsLintTest(unittest.TestCase):
                     "version": "1.0",
                     "sha256": sha256,
                     "distribution": "restricted",
+                    "obtained_from": "provider portal",
+                    "obtained_at": "2026-08-31",
                     "derived_documents": [],
                 }
             ]
@@ -309,6 +311,26 @@ class DocsLintTest(unittest.TestCase):
                     "kind": "provider-snapshot",
                     "provider": "",
                     "version": "",
+                    "sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+                    "distribution": "internal",
+                    "obtained_from": "unknown",
+                    "obtained_at": "unknown",
+                }
+            ]
+        )
+
+        self.assertIn("invalid-source-entry", self.issue_codes())
+
+    def test_snapshot_requires_explicit_provenance(self) -> None:
+        self.write(self.root / "docs/source.json", "{}\n")
+        self.write_manifest(
+            [
+                {
+                    "id": "provider-api-1.0",
+                    "path": "docs/source.json",
+                    "kind": "provider-snapshot",
+                    "provider": "Provider",
+                    "version": "1.0",
                     "sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
                     "distribution": "internal",
                 }
@@ -349,6 +371,8 @@ class DocsLintTest(unittest.TestCase):
                     "version": "2.0",
                     "sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
                     "distribution": "internal",
+                    "obtained_from": "provider portal",
+                    "obtained_at": "2026-08-31",
                     "derived_documents": ["docs/derived.md"],
                 },
                 {
@@ -365,6 +389,30 @@ class DocsLintTest(unittest.TestCase):
 
         self.assertEqual(len(issues), 1)
         self.assertEqual(issues[0].severity, "warning")
+
+    def test_derived_document_requires_status_and_source_version(self) -> None:
+        self.write(self.root / "docs/derived.md", "# Derived\n")
+        self.write_manifest(
+            [
+                {
+                    "path": "docs/derived.md",
+                    "kind": "provider-derived",
+                    "source": "missing",
+                    "source_version": "",
+                    "status": "invented",
+                }
+            ]
+        )
+
+        self.assertIn("invalid-source-entry", self.issue_codes())
+
+    def test_source_manifest_version_must_be_one(self) -> None:
+        self.write(
+            self.root / "docs/sources/manifest.json",
+            json.dumps({"version": 2, "sources": []}),
+        )
+
+        self.assertIn("invalid-source-manifest", self.issue_codes())
 
     def test_unclassified_dari_like_file_is_an_error(self) -> None:
         path = self.root / "docs/attachments/0000_Dari_credentials.csv"
