@@ -46,7 +46,7 @@
 - Consumes: repository root containing `.repository-knowledge.json`.
 - Produces: `Issue(severity: str, code: str, path: str, message: str)`, `lint_repository(root: Path) -> list[Issue]`, and CLI exit status `1` when any issue has severity `error`, otherwise `0`.
 
-- [ ] **Step 1: Add fixture helpers and a passing minimal-repository test**
+- [x] **Step 1: Add fixture helpers and a passing minimal-repository test**
 
 Create a `unittest.TestCase` that imports the script with `importlib.util`, creates files under `tempfile.TemporaryDirectory`, and writes this minimal contract:
 
@@ -79,7 +79,7 @@ def make_repository(self, root: Path) -> None:
 
 Assert `lint_repository(root) == []`.
 
-- [ ] **Step 2: Run the minimal test and verify RED**
+- [x] **Step 2: Run the minimal test and verify RED**
 
 Run:
 
@@ -89,7 +89,7 @@ python3 -m unittest install-repository-knowledge/tests/test_docs_lint.py -v
 
 Expected: import or attribute failure because `docs_lint.py` does not exist.
 
-- [ ] **Step 3: Implement configuration, issue reporting, and required-file checks**
+- [x] **Step 3: Implement configuration, issue reporting, and required-file checks**
 
 Implement:
 
@@ -120,7 +120,7 @@ Require `AGENTS.md`, `docs/index.md`, `docs/tags.md`,
 `docs/repository-knowledge.md`, `docs/sources/index.md`, the configured source
 manifest, and `bin/docs-lint`.
 
-- [ ] **Step 4: Add RED tests for links, reachability, and unmanaged docs**
+- [x] **Step 4: Add RED tests for links, reachability, and unmanaged docs**
 
 Add focused tests asserting these codes:
 
@@ -133,7 +133,7 @@ self.assertWarningCodes(root, "unmanaged-documentation")
 Use one fixture mutation per test: a missing relative target, an unlinked file
 inside `managed_roots`, and a Markdown file outside managed roots.
 
-- [ ] **Step 5: Implement managed Markdown graph validation**
+- [x] **Step 5: Implement managed Markdown graph validation**
 
 Parse ordinary inline Markdown links, ignore `http:`, `https:`, `mailto:`, pure
 anchors, and images, strip URL fragments, percent-decode paths, and resolve
@@ -142,7 +142,7 @@ traverse it from `docs/index.md`; emit `orphan-page` only for managed pages.
 Emit `unmanaged-documentation` as a warning for Markdown outside core files,
 managed roots, excluded paths, and `docs/sources/`.
 
-- [ ] **Step 6: Add RED tests for tag registry and dual-sided usage**
+- [x] **Step 6: Add RED tests for tag registry and dual-sided usage**
 
 Cover invalid slug, unregistered usage, duplicate registry entry, docs-only
 usage, code-only usage, misplaced `knowledge-tags`, and an unused registered
@@ -155,7 +155,7 @@ cases = {
 }
 ```
 
-- [ ] **Step 7: Implement tag validation**
+- [x] **Step 7: Implement tag validation**
 
 Accept only:
 
@@ -168,7 +168,7 @@ Parse registry entries beginning with a backticked token and containing
 Markdown and non-doc text files. Exclude `.git`, common build/cache directories,
 the registry definition itself, source snapshots, and configured exclusions.
 
-- [ ] **Step 8: Add RED tests for source manifests and credentials**
+- [x] **Step 8: Add RED tests for source manifests and credentials**
 
 Add a MirPass-like fixture with:
 
@@ -205,7 +205,7 @@ Add a MirPass-like fixture with:
 Cover changed SHA, missing source, source-version mismatch, an unclassified
 tracked DARI-like file, and a safely classified synthetic fixture.
 
-- [ ] **Step 9: Implement source and credential-like validation**
+- [x] **Step 9: Implement source and credential-like validation**
 
 Validate required fields by `kind`, stream SHA-256 reads, warn for
 `distribution: restricted`, error on changed hash, warn on derived mismatch or
@@ -213,7 +213,7 @@ unknown source, and error on credential-like filenames unless classified as
 `synthetic-fixture` with `synthetic: true`. Never read binary contents looking
 for secrets.
 
-- [ ] **Step 10: Implement the CLI and run the complete linter suite GREEN**
+- [x] **Step 10: Implement the CLI and run the complete linter suite GREEN**
 
 CLI contract:
 
@@ -230,7 +230,7 @@ python3 -m unittest install-repository-knowledge/tests/test_docs_lint.py -v
 
 Expected: all tests pass.
 
-- [ ] **Step 11: Review Task 1 and commit**
+- [x] **Step 11: Review Task 1 and commit**
 
 Run `git diff --check`, inspect only the two Task 1 files, correct confirmed
 issues, rerun tests, then commit:
@@ -259,13 +259,13 @@ git commit -m "KON-0000: add repository knowledge linter"
 - Consumes: `--repo PATH`, assets adjacent to the script, and canonical protocol/linter files from the skill.
 - Produces: `plan_install(repo: Path, skill_root: Path) -> InstallPlan`, dry-run text, and `--apply` mutations only when no conflict exists.
 
-- [ ] **Step 1: Write RED tests for fresh dry-run and apply**
+- [x] **Step 1: Write RED tests for fresh dry-run and apply**
 
 Assert default invocation makes no changes and lists creates; `--apply` creates
 the required tree, copies the protocol to `docs/repository-knowledge.md`, copies
 the linter to `bin/docs-lint`, and sets its executable bit.
 
-- [ ] **Step 2: Write RED tests for existing files, conflicts, and idempotence**
+- [x] **Step 2: Write RED tests for existing files, conflicts, and idempotence**
 
 Cover five named cases: `test_second_apply_has_no_changes` compares a complete
 tree digest before and after the second apply;
@@ -280,7 +280,7 @@ writes.
 
 Expected initial result: import or attribute failure.
 
-- [ ] **Step 3: Define assets and managed block markers**
+- [x] **Step 3: Define assets and managed block markers**
 
 Use these exact markers in `AGENTS.md`, `docs/index.md`, and `docs/tags.md`:
 
@@ -308,7 +308,7 @@ Default config:
 
 Default manifest is `{"version": 1, "sources": []}`.
 
-- [ ] **Step 4: Implement planning and all-or-nothing conflict detection**
+- [x] **Step 4: Implement planning and all-or-nothing conflict detection**
 
 Define immutable dataclasses:
 
@@ -334,7 +334,7 @@ Marker-managed files preserve all content outside one well-formed block.
 Multiple, nested, or half-present markers are conflicts. Any conflict prevents
 all writes.
 
-- [ ] **Step 5: Implement atomic application and CLI**
+- [x] **Step 5: Implement atomic application and CLI**
 
 Write each changed file to a sibling temporary file, preserve the existing mode
 when replacing a marker-managed file, use `Path.replace`, and set
@@ -342,7 +342,7 @@ when replacing a marker-managed file, use `Path.replace`, and set
 mutation. Stable exit codes: `0` success/no conflicts, `2` conflict or invalid
 repository.
 
-- [ ] **Step 6: Run installer tests GREEN and execute a temporary end-to-end install**
+- [x] **Step 6: Run installer tests GREEN and execute a temporary end-to-end install**
 
 Run:
 
@@ -360,7 +360,7 @@ git -C "$fixture" status --short
 Expected: tests pass, linter exits `0` with only allowed warnings, and the second
 apply reports no changes.
 
-- [ ] **Step 7: Review Task 2 and commit**
+- [x] **Step 7: Review Task 2 and commit**
 
 Run `git diff --check`, inspect installer safety and exact owned paths, rerun both
 test modules, then commit:
@@ -386,7 +386,7 @@ git commit -m "KON-0000: add safe knowledge protocol installer"
 - Consumes: installer and linter from Tasks 1–2.
 - Produces: discoverable `$install-repository-knowledge` skill and the canonical protocol copied into target repositories.
 
-- [ ] **Step 1: Write the canonical Russian protocol**
+- [x] **Step 1: Write the canonical Russian protocol**
 
 Translate every normative requirement from the approved spec into concise
 operational rules. Include: source-of-truth order, domain-first sections,
@@ -395,14 +395,14 @@ provider classification, manifest fields, distribution/security gate,
 runtime-bound path protection, and the boundary between installation and
 migration.
 
-- [ ] **Step 2: Make the installed protocol asset byte-identical to the canonical reference**
+- [x] **Step 2: Make the installed protocol asset byte-identical to the canonical reference**
 
 Copy the canonical file to
 `install-repository-knowledge/assets/repository-knowledge.md` and add a test in
 `test_install.py` asserting byte equality. This prevents drift between skill
 guidance and target output.
 
-- [ ] **Step 3: Create a concise installation skill**
+- [x] **Step 3: Create a concise installation skill**
 
 The `SKILL.md` description activates only for installing or checking this
 protocol, not for migrating existing documentation. Its workflow must:
@@ -416,7 +416,7 @@ protocol, not for migrating existing documentation. Its workflow must:
 7. never change CI, move existing docs, commit, push, or publish without the
    corresponding explicit request.
 
-- [ ] **Step 4: Add UI metadata and validate the skill**
+- [x] **Step 4: Add UI metadata and validate the skill**
 
 Use:
 
@@ -435,7 +435,7 @@ python3 -m unittest discover -s install-repository-knowledge/tests -p 'test_*.py
 
 Expected: skill valid and all tests pass.
 
-- [ ] **Step 5: Review Task 3 and commit**
+- [x] **Step 5: Review Task 3 and commit**
 
 Compare protocol reference, installed asset, and approved spec; remove duplicated
 generic agent advice; rerun validation/tests; then commit:
@@ -461,7 +461,7 @@ git commit -m "KON-0000: add repository knowledge installation skill"
 - Consumes: target repository's installed `docs/repository-knowledge.md`, `.repository-knowledge.json`, and linter.
 - Produces: migration inventory, user-approved migration map, small safe migration batches, and linter evidence.
 
-- [ ] **Step 1: Write the migration skill with a hard approval boundary**
+- [x] **Step 1: Write the migration skill with a hard approval boundary**
 
 The skill must distinguish:
 
@@ -476,14 +476,14 @@ It first outputs a concrete table
 `old path | class | target path or keep | owner page | tags | required updates`
 and must stop before mutation until the user approves that map.
 
-- [ ] **Step 2: Encode migration and safety behavior**
+- [x] **Step 2: Encode migration and safety behavior**
 
 After approval, require small batches using `git mv`, link repair, index/tag
 updates, manifest changes, and a linter run per batch. Preserve dirty/unrelated
 changes. Do not alter snapshots, duplicate restricted text, infer provenance,
 modify CI, commit, push, or deploy beyond the current explicit authorization.
 
-- [ ] **Step 3: Add UI metadata and validate both skills**
+- [x] **Step 3: Add UI metadata and validate both skills**
 
 Use:
 
@@ -502,7 +502,7 @@ python3 .system/skill-creator/scripts/quick_validate.py install-repository-knowl
 
 Expected: both skills valid.
 
-- [ ] **Step 4: Review Task 4 and commit**
+- [x] **Step 4: Review Task 4 and commit**
 
 Verify the migration skill cannot be mistaken for the installer and includes an
 explicit provider/source decision before any movement. Commit:
@@ -524,7 +524,7 @@ git commit -m "KON-0000: add repository knowledge migration skill"
 - Consumes: all implementation commits.
 - Produces: verified clean feature branch, local merge into `master`, pushed exact master SHA.
 
-- [ ] **Step 1: Run full deterministic verification**
+- [x] **Step 1: Run full deterministic verification**
 
 ```bash
 python3 -m unittest discover -s install-repository-knowledge/tests -p 'test_*.py' -v
@@ -535,21 +535,21 @@ git diff --check origin/master...HEAD
 
 Expected: all tests pass, both skills valid, and no whitespace errors.
 
-- [ ] **Step 2: Run isolated installation and MirPass-like source smoke**
+- [x] **Step 2: Run isolated installation and MirPass-like source smoke**
 
 Create a temporary Git repository, install twice, run the linter, then add a
 small provider snapshot plus correct hash, provider-derived Markdown, local
 OpenAPI path, and synthetic DARI fixture. Run the linter again and require exit
 `0`; mutate the snapshot and require exit `1` with `snapshot-hash-mismatch`.
 
-- [ ] **Step 3: Review the complete diff against the spec**
+- [x] **Step 3: Review the complete diff against the spec**
 
 Check every spec section has implementation evidence. Focus on mutation safety,
 path traversal, symlinks, binary handling, Markdown-link parsing, source rights,
 credential-like filenames, marker corruption, idempotence, and accidental CI
 changes. Fix only confirmed findings and rerun Step 1.
 
-- [ ] **Step 4: Commit final confirmed fixes and completed plan state**
+- [x] **Step 4: Commit final confirmed fixes and completed plan state**
 
 If review changes exist, commit them atomically. Mark completed plan tasks,
 stage the plan only, and commit:
@@ -559,7 +559,7 @@ git add docs/superpowers/plans/2026-08-31-repository-knowledge-protocol.md
 git commit -m "KON-0000: record repository knowledge implementation"
 ```
 
-- [ ] **Step 5: Merge locally into the only remote target**
+- [x] **Step 5: Merge locally into the only remote target**
 
 ```bash
 git fetch origin --prune
@@ -571,7 +571,7 @@ GIT_MERGE_AUTOEDIT=no git merge --no-ff KON-0000
 Stop on remote advancement, conflicts, unexpected commits, or failed checks.
 Rerun Step 1 on merged `master`.
 
-- [ ] **Step 6: Push only master and verify exact SHA**
+- [x] **Step 6: Push only master and verify exact SHA**
 
 ```bash
 git push origin master
@@ -584,7 +584,7 @@ git merge-base --is-ancestor f47fc1f master
 Because only one target exists and deployment monitoring was not requested,
 verify remote SHA and feature containment without pipeline monitoring.
 
-- [ ] **Step 7: Report delivery evidence**
+- [x] **Step 7: Report delivery evidence**
 
 Report feature commits, merge commit, remote master SHA, tests, skill validation,
 temporary-fixture smoke, absence of CI changes, and final worktree status.
