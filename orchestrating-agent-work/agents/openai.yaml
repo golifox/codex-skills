@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agent Work Orchestration"
+  short_description: "Coordinate durable multi-agent implementation work"
+  default_prompt: "Use $orchestrating-agent-work to coordinate this multi-step implementation."
