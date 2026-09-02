@@ -129,3 +129,26 @@ Disabled plugins remain out of effective activation and are not removal targets 
 ## Expected reduction
 
 Before plugin contributions, consolidation and archive remove 29 custom catalog entries: 10 merge sources and 19 unused skills. Legacy cleanup removes 9 duplicate/alternate-source entries while preserving Context7 in the authoritative root. Plugin removal eliminates additional contributed descriptions. Exact effective after-metrics require a fresh Codex session.
+
+## Результат выполнения
+
+- Пользовательские skills: 76 -> 48 (-28, 36.8%). Четыре сохраняемых core-skill были legacy symlinks; они материализованы в authoritative root, поэтому остаются доступны после удаления legacy-каталога.
+- Размер пользовательских `SKILL.md`: 327119 -> 214444 bytes (-34.4%).
+- Размер YAML descriptions: 17679 -> 12136 bytes (-31.4%).
+- Legacy skills: 9 -> 0.
+- Активные plugins: 10 -> 6. Сохранены `codemem`, `superpowers`, `browser`, `chrome`, `codex-app-tools`, `codex-security`.
+- Активные MCP: 10 -> 8. `codegraph` удалён; `codebase-memory-mcp` и пользовательский `codemem` активны.
+- Agent TOML: 20 -> 17; три installer-owned CBM agent удалены.
+- CBM global hooks удалены; `auto_index=false`, `auto_watch=false`, UI оставлен включённым.
+- CodeGraph npm package, launcher, MCP config и `~/.codegraph` перенесены в обратимый архив.
+- Все 48 retained root skills прошли системный `quick_validate.py`.
+- `codex doctor --summary`: 22 ok, 0 warn, 0 fail.
+- Архив восстановления: `/Users/david/.Trash/codex-skill-refactor-20260902`, manifest содержит hashes и исходные пути.
+
+## Коммиты реализации
+
+- `18cf0e4 refactor: consolidate overlapping skills`
+- `ebb2fcb remove: archive unused specialized skills`
+- `c780127 fix: materialize retained core skills`
+
+Plugin/MCP/config изменения находятся вне этого Git-репозитория и проверяются по live-конфигурации. Итоговый effective catalog текущей уже запущенной сессии может быть stale до перезапуска Codex; filesystem metrics выше актуальны.
