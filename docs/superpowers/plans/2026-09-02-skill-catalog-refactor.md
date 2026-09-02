@@ -52,7 +52,7 @@ rtk codebase-memory-mcp config list
 rtk git status --short
 ```
 
-Expected: CodeGraph, Codebase Memory, and codemem are visible as separate MCP entries; `auto_index=false`; no secret values are printed by `codex mcp list`.
+Expected: CodeGraph, Codebase Memory, and codemem are visible as separate MCP entries; the actual Codebase Memory configuration values are recorded; no secret values are printed by `codex mcp list`.
 
 - [ ] **Step 2: Inventory active skill sources**
 
@@ -186,17 +186,17 @@ Expected: executable is `/Users/david/.local/bin/codebase-memory-mcp`; CLI retur
 
 ---
 
-### Task 3: Remove Competing Code Intelligence Services
+### Task 3: Remove CodeGraph
 
 **Files:**
 - Modify: `/Users/david/.codex/config.toml`
 - Remove through package manager: `@colbymchenry/codegraph@0.9.9`
-- Remove through plugin manager: `codemem@codemem`
+- Preserve: user-owned plugin and MCP `codemem@codemem`
 - Preserve: project-local `.codegraph/` and `.codegraph` ignore changes unless separately approved.
 
 **Interfaces:**
 - Consumes: verified Codebase Memory MCP from Task 2.
-- Produces: exactly one active code-intelligence MCP, `codebase-memory-mcp`.
+- Produces: no active CodeGraph; both user-approved `codebase-memory-mcp` and `codemem` remain.
 
 - [ ] **Step 1: Prove Codebase Memory can index a disposable repository**
 
@@ -253,23 +253,11 @@ rtk which codegraph
 
 Expected: uninstall succeeds and `which codegraph` returns not found.
 
-- [ ] **Step 5: Remove codemem through Codex plugin management**
-
-Run:
-
-```bash
-rtk codex plugin remove codemem@codemem --json
-rtk codex plugin list
-rtk codex mcp list
-```
-
-Expected: codemem plugin and MCP disappear; Codebase Memory remains enabled.
-
-- [ ] **Step 6: Verify configuration integrity**
+- [ ] **Step 5: Verify configuration integrity**
 
 Run a TOML parse without printing values, then `rtk codex doctor` and `rtk codex mcp list`.
 
-Expected: no CodeGraph or codemem entry; no new configuration error.
+Expected: no CodeGraph entry; both codemem and Codebase Memory remain enabled; no new configuration error.
 
 ---
 
@@ -417,7 +405,7 @@ rtk codebase-memory-mcp config list
 rtk git status --short
 ```
 
-Expected: one code-intelligence MCP, no CodeGraph/codemem, background indexing disabled, unrelated dirty paths unchanged.
+Expected: no CodeGraph, both codemem and Codebase Memory enabled, background indexing disabled, unrelated dirty paths unchanged.
 
 - [ ] **Step 3: Restart Codex and inspect the effective catalog**
 
