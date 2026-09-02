@@ -1,14 +1,13 @@
 ---
-name: commit-message
+name: konsierge-commit-conventions
 description: >
-  Ultra-compressed commit message generator. Cuts noise from commit messages while preserving
-  intent. Uses Konsierge/KON branch prefixes, contracts repository prefixes, and short
-  action-based summaries. Use when user says "write a commit", "commit message",
-  "generate commit", "/commit", or invokes /caveman-commit. Auto-triggers when staging
-  changes.
+  Generate terse, exact commit messages for Konsierge, contracts, and other repositories.
+  Use when the user asks for a commit message or when another workflow needs to name a commit.
 ---
 
 Write commit messages terse and exact. No fluff. Why over what. Match project convention first.
+
+This skill owns only commit-message content. For branch creation, staging, committing, merging, pushing, or deployment verification in a Konsierge repository, use [`konsierge-git-flow`](../konsierge-git-flow/SKILL.md).
 
 ## Format Priority
 
@@ -25,6 +24,7 @@ If committing inside the `contracts` repository, usually a git submodule inside 
 `[PROJECT_NAME] <description>.`
 
 Rules:
+
 - `PROJECT_NAME` is uppercase project/domain name used by the contracts repo convention.
 - Examples: `[TRAVELMART]`, `[CRM]`, `[PAYMENT]`, `[KINO-AFISHA]`.
 - Do not prepend `KON-\d+` in contracts commits.
@@ -47,6 +47,7 @@ Examples:
 If this is a Konsierge project and the current branch contains `KON-\d+`, prefix the commit with the extracted ticket id.
 
 Extract only the `KON-\d+` part:
+
 - Branch `KON-0000` -> prefix `KON-0000`
 - Branch `KON-1234-dev` -> prefix `KON-1234`
 - Branch `feature/KON-1234-dev` -> prefix `KON-1234`
@@ -83,6 +84,7 @@ Add: global callbacks. Refactor: legacy payment system. Remove: legacy fields fr
 ## Global Actions
 
 Allowed actions:
+
 - `Add`
 - `Remove`
 - `Fix`
@@ -90,6 +92,7 @@ Allowed actions:
 - `Change`
 
 Action meaning:
+
 - `Add`: new behavior, field, endpoint, schema, test, config, or capability
 - `Remove`: deleted behavior, field, dependency, config, or dead code
 - `Fix`: bug fix, regression fix, broken behavior, failing test, bad edge case
@@ -97,6 +100,7 @@ Action meaning:
 - `Change`: behavior changed, contract changed, naming changed, defaults changed
 
 Rules:
+
 - Use only the allowed action names.
 - Capitalize actions exactly as listed.
 - Use `Fix`, not `Fixed`, `Fixes`, or `Repair`.
@@ -108,6 +112,7 @@ Rules:
 ## Description Rules
 
 Description is caveman-short:
+
 - State the meaningful change, not every touched file.
 - Do not list implementation bullets.
 - Do not enumerate changed paths.
@@ -141,6 +146,7 @@ feat(payment): add callback parser
 Default: no body.
 
 Add a body only when subject cannot carry critical context:
+
 - Breaking change
 - Security fix
 - Data migration
@@ -149,6 +155,7 @@ Add a body only when subject cannot carry critical context:
 - Required manual deploy step
 
 Body rules:
+
 - Keep it short.
 - Wrap at 72..128 chars.
 - Bullets use `-`, not `*`.
@@ -167,6 +174,7 @@ fields are removed from order contracts.
 ## What Never Goes In
 
 Drop:
+
 - "This commit does X"
 - "I", "we", "now", "currently"
 - "As requested by..."
@@ -179,6 +187,7 @@ Drop:
 ## Selection Rules
 
 Before writing:
+
 - Identify whether the repo is `contracts`.
 - Identify whether this is a Konsierge project.
 - Read the current branch when available.
@@ -187,6 +196,7 @@ Before writing:
 - Follow nearby git log convention when it conflicts with generic style.
 
 If unsure:
+
 - Use `Change` for broad behavior updates.
 - Use no `KON-\d+` prefix unless both Konsierge project and branch match are clear.
 - For contracts, ask or infer `PROJECT_NAME` from surrounding paths, schemas, or recent git log.
@@ -194,6 +204,7 @@ If unsure:
 ## Auto-Clarity
 
 Never compress away critical context for:
+
 - Breaking changes
 - Security fixes
 - Data migrations

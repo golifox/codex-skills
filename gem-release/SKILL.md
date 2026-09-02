@@ -1,5 +1,5 @@
 ---
-name: prerelease
+name: gem-release
 description: Prepare a repository for release by applying Semantic Versioning and changelog updates to Ruby gems, running every available verification check, validating built gem artifacts, and producing a commit message through the commit-message skill. Use when asked to prepare a release or prerelease, bump a gem version, update release metadata, run release checks, or make a project release-ready; for non-gem projects, run the verification gate and suggest a commit message without changing version metadata.
 ---
 

@@ -1,4 +1,4 @@
 interface:
-  display_name: "Создание ADR"
-  short_description: "Создаёт русские ADR и безопасно коммитит их"
-  default_prompt: "Создай ADR на русском языке в docs/adr по принятому формату и закоммить его после необходимых подтверждений."
+  display_name: "Create ADR"
+  short_description: "Compatibility entrypoint for the domain-modeling ADR workflow"
+  default_prompt: "Use $domain-modeling to create or update an ADR, preserving the repository format and obtaining owner approval when required."

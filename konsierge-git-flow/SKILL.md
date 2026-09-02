@@ -7,6 +7,8 @@ description: "Apply the Konsierge branch, commit, target-branch push, and condit
 
 Treat this as the standing delivery workflow for Konsierge repositories.
 
+This skill owns branch topology, commits, target integration, pushes, and delivery evidence. For commit-message selection and formatting, use [`konsierge-commit-conventions`](../konsierge-commit-conventions/SKILL.md). That skill generates text only; this skill controls when and where the commit is created.
+
 The global commit hook first identifies the repository. Repositories with any remote hosted exactly at `gitlab.konsierge.com`, or repositories explicitly configured with `git config konsierge.commitPolicy true`, use the KON rules below. Other repositories keep unrestricted branch names and require Conventional Commit subjects such as `feat: add export` or `fix(api): reject invalid input`; real Git merge and revert operations retain their generated subjects.
 
 The global hook directory dispatches every standard Git hook back to an executable repository-local `.git/hooks/<hook>` when one exists. The global `commit-msg` policy runs first and then chains the repository-local `commit-msg`, so enabling policy enforcement must not silently disable existing project hooks.
@@ -43,7 +45,7 @@ A repository-local `core.hooksPath` overrides Git's global value before any glob
 ## Commit in the Feature Branch
 
 1. Implement and verify the requested work.
-2. Build atomic commits using repository style and the matching `KON-XXXX` prefix.
+2. Build atomic commits using [`konsierge-commit-conventions`](../konsierge-commit-conventions/SKILL.md). Nearby repository history remains authoritative when it establishes a more specific convention.
 3. Confirm the feature worktree is clean and relevant checks pass.
 4. Do not push the feature branch.
 

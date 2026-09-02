@@ -1,5 +1,5 @@
 ---
-name: mcp-process-cleanup
+name: mcp-cleanup
 description: Register and safely stop MCP processes launched by the current Codex session without touching platform-managed or neighboring-session processes.
 ---
 
