@@ -1,0 +1,31 @@
+#!/bin/sh
+set -eu
+
+config_path=${KONSIERGE_PRE_COMMIT_CONFIG:-"$HOME/.codex/skills/konsierge-git-flow/hooks/pre-commit-config.yaml"}
+hook_name=$(basename "$0")
+
+if [ "$hook_name" = commit-msg ]; then
+  if ! command -v pre-commit >/dev/null 2>&1; then
+    echo "commit-msg: pre-commit is not installed or not present in PATH" >&2
+    exit 1
+  fi
+
+  if [ ! -f "$config_path" ]; then
+    echo "commit-msg: global pre-commit config is missing: $config_path" >&2
+    exit 1
+  fi
+
+  pre-commit run \
+    --config "$config_path" \
+    --hook-stage commit-msg \
+    --commit-msg-filename "$1" || exit $?
+fi
+
+common_dir=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)
+repository_hook="$common_dir/hooks/$hook_name"
+
+if [ -n "$common_dir" ] && [ -x "$repository_hook" ]; then
+  exec "$repository_hook" "$@"
+fi
+
+exit 0
