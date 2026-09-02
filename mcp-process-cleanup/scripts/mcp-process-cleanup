@@ -1,0 +1,247 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly DEFAULT_GRACE_SECONDS=5
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  mcp-process-cleanup run --session ID -- COMMAND [ARGS...]
+  mcp-process-cleanup register --session ID --pid PID [--owner-pid PID]
+  mcp-process-cleanup list
+  mcp-process-cleanup cleanup-session [--session ID] (--dry-run|--execute)
+  mcp-process-cleanup cleanup-orphans (--dry-run|--execute)
+USAGE
+}
+
+die() {
+  printf 'ERROR %s\n' "$*" >&2
+  exit 2
+}
+
+state_root() {
+  if [[ -n "${MCP_CLEANUP_STATE_ROOT:-}" ]]; then
+    printf '%s\n' "$MCP_CLEANUP_STATE_ROOT"
+  else
+    [[ -n "${CODEX_HOME:-}" || -n "${HOME:-}" ]] || die 'CODEX_HOME or HOME is required'
+    printf '%s/runtime/mcp-processes\n' "${CODEX_HOME:-${HOME}/.codex}"
+  fi
+}
+
+valid_session() {
+  [[ "$1" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]]
+}
+
+active_session() {
+  printf '%s\n' "${CODEX_SESSION_ID:-${OMX_SESSION_ID:-}}"
+}
+
+require_session() {
+  local requested="${1:-}" current
+  current="$(active_session)"
+  [[ -n "$requested" ]] || requested="$current"
+  [[ -n "$requested" ]] || die 'session ID is required'
+  valid_session "$requested" || die 'invalid session ID'
+  if [[ -n "$current" && "$requested" != "$current" ]]; then
+    die 'refusing another active session'
+  fi
+  printf '%s\n' "$requested"
+}
+
+sha256_text() {
+  printf '%s' "$1" | shasum -a 256 | awk '{print $1}'
+}
+
+process_field() {
+  local pid="$1" field="$2"
+  ps -p "$pid" -o "${field}=" 2>/dev/null | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'
+}
+
+process_identity() {
+  local pid="$1" uid started command
+  [[ "$pid" =~ ^[1-9][0-9]*$ ]] || return 1
+  uid="$(process_field "$pid" uid)"
+  started="$(process_field "$pid" lstart)"
+  command="$(process_field "$pid" command)"
+  [[ -n "$uid" && -n "$started" && -n "$command" ]] || return 1
+  printf '%s\t%s\t%s\n' "$uid" "$(sha256_text "$started")" "$(sha256_text "$command")"
+}
+
+eligible_command() {
+  local command="$1"
+  case "$command" in
+    *mcp*|*MCP*) return 0 ;;
+  esac
+  [[ "${MCP_CLEANUP_ALLOW_TEST_PROCESS:-0}" == 1 && "$command" == *mcp-cleanup-test* ]]
+}
+
+record_value() {
+  local file="$1" key="$2"
+  awk -F= -v wanted="$key" '$1 == wanted {sub(/^[^=]*=/, ""); print; exit}' "$file"
+}
+
+write_record() {
+  local session="$1" pid="$2" owner_pid="$3"
+  local root directory identity uid start_hash command_hash command owner_identity owner_uid owner_start owner_command
+  root="$(state_root)"
+  directory="$root/$session"
+  umask 077
+  mkdir -p "$directory"
+  chmod 700 "$root" "$directory"
+  identity="$(process_identity "$pid")" || die "PID $pid is not running"
+  IFS=$'\t' read -r uid start_hash command_hash <<<"$identity"
+  [[ "$uid" == "$(id -u)" ]] || die 'process belongs to another UID'
+  command="$(process_field "$pid" command)"
+  eligible_command "$command" || die 'process is not an eligible MCP helper'
+  owner_identity="$(process_identity "$owner_pid")" || die 'owner PID is not running'
+  IFS=$'\t' read -r owner_uid owner_start owner_command <<<"$owner_identity"
+  [[ "$owner_uid" == "$(id -u)" ]] || die 'owner belongs to another UID'
+  {
+    printf 'session=%s\n' "$session"
+    printf 'pid=%s\n' "$pid"
+    printf 'uid=%s\n' "$uid"
+    printf 'start_hash=%s\n' "$start_hash"
+    printf 'command_hash=%s\n' "$command_hash"
+    printf 'owner_pid=%s\n' "$owner_pid"
+    printf 'owner_start_hash=%s\n' "$owner_start"
+    printf 'owner_command_hash=%s\n' "$owner_command"
+  } >"$directory/$pid.record"
+  chmod 600 "$directory/$pid.record"
+  printf 'REGISTERED session=%s pid=%s\n' "$session" "$pid"
+}
+
+record_matches_process() {
+  local file="$1" pid uid start_hash command_hash identity current_uid current_start current_command
+  pid="$(record_value "$file" pid)"
+  uid="$(record_value "$file" uid)"
+  start_hash="$(record_value "$file" start_hash)"
+  command_hash="$(record_value "$file" command_hash)"
+  [[ "$pid" =~ ^[1-9][0-9]*$ && "$uid" =~ ^[0-9]+$ ]] || return 1
+  identity="$(process_identity "$pid")" || return 1
+  IFS=$'\t' read -r current_uid current_start current_command <<<"$identity"
+  [[ "$current_uid" == "$uid" && "$uid" == "$(id -u)" && "$current_start" == "$start_hash" && "$current_command" == "$command_hash" ]]
+}
+
+process_is_running() {
+  local pid="$1" state
+  state="$(process_field "$pid" stat)"
+  [[ -n "$state" && "$state" != Z* ]]
+}
+
+owner_is_orphaned() {
+  local file="$1" owner_pid expected_start expected_command identity uid start command
+  owner_pid="$(record_value "$file" owner_pid)"
+  expected_start="$(record_value "$file" owner_start_hash)"
+  expected_command="$(record_value "$file" owner_command_hash)"
+  identity="$(process_identity "$owner_pid")" || return 0
+  IFS=$'\t' read -r uid start command <<<"$identity"
+  [[ "$uid" != "$(id -u)" || "$start" != "$expected_start" || "$command" != "$expected_command" ]]
+}
+
+stop_record() {
+  local file="$1" mode="$2" pid deadline
+  pid="$(record_value "$file" pid)"
+  if ! record_matches_process "$file"; then
+    printf 'STALE pid=%s record=%s\n' "${pid:-unknown}" "$file"
+    rm -f -- "$file"
+    return
+  fi
+  if [[ "$mode" == dry-run ]]; then
+    printf 'WOULD_STOP pid=%s record=%s\n' "$pid" "$file"
+    return
+  fi
+  kill -TERM "$pid"
+  deadline=$((SECONDS + DEFAULT_GRACE_SECONDS))
+  while process_is_running "$pid" && (( SECONDS < deadline )); do
+    sleep 0.1
+  done
+  if process_is_running "$pid" && record_matches_process "$file"; then
+    kill -KILL "$pid"
+  fi
+  rm -f -- "$file"
+  printf 'STOPPED pid=%s\n' "$pid"
+}
+
+list_records() {
+  local root file
+  root="$(state_root)"
+  [[ -d "$root" ]] || return 0
+  while IFS= read -r file; do
+    printf 'RECORD session=%s pid=%s valid=%s orphan=%s\n' \
+      "$(record_value "$file" session)" \
+      "$(record_value "$file" pid)" \
+      "$(record_matches_process "$file" && printf yes || printf no)" \
+      "$(owner_is_orphaned "$file" && printf yes || printf no)"
+  done < <(find "$root" -type f -name '*.record' -print)
+}
+
+cleanup_session() {
+  local session="$1" mode="$2" root directory file
+  session="$(require_session "$session")"
+  root="$(state_root)"
+  directory="$root/$session"
+  [[ -d "$directory" ]] || return 0
+  while IFS= read -r file; do stop_record "$file" "$mode"; done < <(find "$directory" -type f -name '*.record' -print)
+  rmdir "$directory" 2>/dev/null || true
+}
+
+cleanup_orphans() {
+  local mode="$1" root file
+  root="$(state_root)"
+  [[ -d "$root" ]] || return 0
+  while IFS= read -r file; do
+    owner_is_orphaned "$file" && stop_record "$file" "$mode"
+  done < <(find "$root" -type f -name '*.record' -print)
+}
+
+main() {
+  local action="${1:-}" session='' pid='' owner_pid="$PPID" mode=''
+  [[ -n "$action" ]] || { usage; exit 2; }
+  shift
+  case "$action" in
+    run)
+      [[ "${1:-}" == --session && -n "${2:-}" && "${3:-}" == -- ]] || die 'run requires --session ID -- COMMAND'
+      session="$(require_session "$2")"; shift 3
+      [[ $# -gt 0 ]] || die 'missing command'
+      "$@" & pid=$!
+      write_record "$session" "$pid" "$$"
+      local status=0
+      wait "$pid" || status=$?
+      rm -f -- "$(state_root)/$session/$pid.record"
+      return "$status"
+      ;;
+    register)
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          --session) session="${2:-}"; shift 2 ;;
+          --pid) pid="${2:-}"; shift 2 ;;
+          --owner-pid) owner_pid="${2:-}"; shift 2 ;;
+          *) die "unknown argument: $1" ;;
+        esac
+      done
+      session="$(require_session "$session")"
+      [[ -n "$pid" ]] || die 'register requires --pid'
+      write_record "$session" "$pid" "$owner_pid"
+      ;;
+    list) [[ $# -eq 0 ]] || die 'list accepts no arguments'; list_records ;;
+    cleanup-session)
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          --session) session="${2:-}"; shift 2 ;;
+          --dry-run) mode=dry-run; shift ;;
+          --execute) mode=execute; shift ;;
+          *) die "unknown argument: $1" ;;
+        esac
+      done
+      [[ -n "$mode" ]] || die 'choose --dry-run or --execute'
+      cleanup_session "$session" "$mode"
+      ;;
+    cleanup-orphans)
+      [[ $# -eq 1 && ( "$1" == --dry-run || "$1" == --execute ) ]] || die 'choose --dry-run or --execute'
+      mode="${1#--}"; cleanup_orphans "$mode"
+      ;;
+    *) usage; die "unknown action: $action" ;;
+  esac
+}
+
+main "$@"
