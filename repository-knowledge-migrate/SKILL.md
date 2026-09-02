@@ -1,5 +1,5 @@
 ---
-name: migrate-repository-knowledge
+name: repository-knowledge-migrate
 description: Inventory and migrate existing repository documentation into the installed Konsierge knowledge protocol. Use for classifying legacy or provider materials and reorganizing them only after the user approves an explicit migration map; use install-repository-knowledge for scaffold installation.
 ---
 

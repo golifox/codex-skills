@@ -1,5 +1,5 @@
 ---
-name: install-repository-knowledge
+name: repository-knowledge-install
 description: Install or check the Konsierge repository knowledge structure, rules, and local linter. Use when a repository needs the protocol scaffold or its installation must be verified; use migrate-repository-knowledge for reorganizing existing documentation.
 ---
 

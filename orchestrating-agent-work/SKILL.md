@@ -9,8 +9,10 @@ The primary agent owns goals, dependencies, decisions, integration, and delivery
 
 ## Routing
 
-- Use `superpowers:dispatching-parallel-agents` to partition genuinely independent domains.
-- Use `superpowers:subagent-driven-development` for plan execution with isolated worktrees, ledgers, reviews, fix rounds, and final verification.
+- Scale the workflow to the work. Do not introduce a written plan, worktree, delegation, or extra review for a small, clear change unless its risk requires one.
+- For a clear change confined to one or two files, work directly with the relevant domain skill, focused tests, and risk-proportionate review.
+- For a change spanning several layers but one coherent flow, use incremental implementation: split it into small verified slices and keep execution local unless delegation materially reduces risk or context load.
+- For architecture, several independent components, or work that cannot fit safely in one context, write an approved plan, isolate the work when useful, and delegate only independent, bounded streams.
 - Route discovery to `codebase_explorer`, cross-cutting design to `architect`, implementation to `implementer` or a domain specialist, independent review to `code_reviewer`, and acceptance checks to `verifier`. Use security or migration specialists when those boundaries are material.
 - Give coding agents an explicit worktree, branch, file ownership, acceptance criteria, verification commands, report path, and warning that concurrent user/agent changes must be preserved.
 - Give every delegated task a minimal skill allowlist in its brief. Use a context budget, not a hard ban:
@@ -18,7 +20,7 @@ The primary agent owns goals, dependencies, decisions, integration, and delivery
   - routine implementation: the domain skill and one workflow skill (for example, `rails` + `test-driven-development`);
   - release/security/migration work: add only its risk-specific skill (`prerelease`, security, or migration), not unrelated ones.
   The brief carries exact files, invariants, and artifact paths instead of transcript history. An agent may load one extra skill only when it names the concrete missing capability or risk; it reports that escalation in its handoff. This is a prompt-level boundary: the runtime catalog remains visible.
-- Before parallel dispatch, compare file and interface ownership, branch, worktree, and dirty state. Serialize streams whose write scopes overlap.
+- Before parallel dispatch, compare file and interface ownership, branch, workspace, and dirty state. Serialize streams whose write scopes overlap. Use isolated worktrees when concurrent writes or preservation of the current checkout makes isolation valuable.
 - Do not parallelize tightly coupled or trivial work.
 
 ## Control and integration
