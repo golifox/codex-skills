@@ -1,0 +1,10 @@
+repos:
+  - repo: local
+    hooks:
+      - id: konsierge-commit-message
+        name: Validate Konsierge branch and commit message
+        entry: bash -c 'exec "${KONSIERGE_GIT_FLOW_SKILL_DIR:-$HOME/.codex/skills/konsierge-git-flow}/scripts/validate-commit-message" "$@"' --
+        language: system
+        stages: [commit-msg]
+        always_run: true
+        pass_filenames: true

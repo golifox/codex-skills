@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+skill_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+source_hook="$skill_dir/hooks/commit-msg"
+hooks_dir=${KONSIERGE_GIT_HOOKS_DIR:-"$HOME/.config/git/hooks"}
+current_hooks_path=$(git config --global --get core.hooksPath || true)
+hook_names='applypatch-msg pre-applypatch post-applypatch pre-commit pre-merge-commit prepare-commit-msg commit-msg post-commit pre-rebase post-checkout post-merge pre-push pre-receive update proc-receive post-receive post-update reference-transaction push-to-checkout pre-auto-gc post-rewrite sendemail-validate fsmonitor-watchman p4-changelist p4-prepare-changelist p4-post-changelist p4-pre-submit post-index-change'
+
+if [[ -n "$current_hooks_path" && "$current_hooks_path" != "$hooks_dir" ]]; then
+  printf 'Refusing to replace existing global core.hooksPath: %s\n' "$current_hooks_path" >&2
+  exit 1
+fi
+
+command -v pre-commit >/dev/null 2>&1 || {
+  echo 'pre-commit is not installed or not present in PATH' >&2
+  exit 1
+}
+
+mkdir -p "$hooks_dir"
+
+for hook_name in $hook_names; do
+  target_hook="$hooks_dir/$hook_name"
+  if [[ -e "$target_hook" ]] && ! cmp -s "$source_hook" "$target_hook"; then
+    printf 'Refusing to replace existing global hook: %s\n' "$target_hook" >&2
+    exit 1
+  fi
+done
+
+for hook_name in $hook_names; do
+  install -m 0755 "$source_hook" "$hooks_dir/$hook_name"
+done
+
+git config --global core.hooksPath "$hooks_dir"
+
+printf 'Installed global hook dispatcher at %s\n' "$hooks_dir"
+printf '%s\n' 'Repositories with a local core.hooksPath require explicit per-repository policy integration.'

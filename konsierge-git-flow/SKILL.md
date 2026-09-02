@@ -1,16 +1,22 @@
 ---
 name: konsierge-git-flow
-description: "Apply the Konsierge branch, commit, target-branch push, and conditional deployment-verification workflow. Use for every Git delivery task in a Konsierge repository: work and commit in a descriptive ticket-and-slug branch, default to a KON-0000 slug when no ticket is specified, deliver to the available targets, and never push a feature branch."
+description: "Apply the Konsierge branch, commit, target-branch push, and conditional deployment-verification workflow. Use for every Git delivery task in a Konsierge repository: work and commit in a KON ticket branch, require a descriptive suffix for linked worktrees, deliver to the available targets, and never push a feature branch."
 ---
 
 # Konsierge Git Flow
 
 Treat this as the standing delivery workflow for Konsierge repositories.
 
+The global commit hook first identifies the repository. Repositories with any remote hosted exactly at `gitlab.konsierge.com`, or repositories explicitly configured with `git config konsierge.commitPolicy true`, use the KON rules below. Other repositories keep unrestricted branch names and require Conventional Commit subjects such as `feat: add export` or `fix(api): reject invalid input`; real Git merge and revert operations retain their generated subjects.
+
+The global hook directory dispatches every standard Git hook back to an executable repository-local `.git/hooks/<hook>` when one exists. The global `commit-msg` policy runs first and then chains the repository-local `commit-msg`, so enabling policy enforcement must not silently disable existing project hooks.
+
+A repository-local `core.hooksPath` overrides Git's global value before any global hook can run. Before every commit, inspect `git config --local --get core.hooksPath`. When it is set, do not commit until that hook manager explicitly invokes the Konsierge validator (or its effective `commit-msg` is installed with the global pre-commit config). This is an agent-side fail-closed preflight because Git provides no higher-precedence client-side hook. Never claim that the global installation covers a repository with an unintegrated local override.
+
 ## Hard Rules
 
-- Develop the feature and create its original commits in a descriptive task branch named `KON-XXXX-<kebab-case-description>`, for example `KON-0000-passes-cancellation` or `KON-1234-authorization-implementation`.
-- Use the concrete ticket from the request or current branch. When none exists, use `KON-0000-<kebab-case-description>`. Do not create a new bare `KON-XXXX` or `KON-0000` branch.
+- Develop the feature and create its original commits in a ticket branch. A regular checkout may use either `KON-XXXX` or `KON-XXXX-<kebab-case-description>`. A linked worktree must use the descriptive form, for example `KON-0000-passes-cancellation` or `KON-1234-authorization-implementation`, so concurrent worktrees remain distinguishable.
+- Use the concrete ticket from the request or current branch. When none exists, use `KON-0000`; add a kebab-case description whenever the work is performed in a linked worktree.
 - Treat the `contracts` tree as out-of-scope by default. When the user did not explicitly ask to change contracts, ignore `contracts` completely: do not mention it in status/final reports, do not treat its dirty state as relevant, and do not include it in staging, commits, checks, or delivery decisions.
 - Never commit feature work directly to `dev` or `master`.
 - Never push task branches or their `-dev` delivery branches under any circumstance.
@@ -29,9 +35,10 @@ Treat this as the standing delivery workflow for Konsierge repositories.
 ## Prepare
 
 1. Read repository instructions and inspect branch, status, staged/unstaged diffs, upstreams, recent subjects, and remote target state.
+   Also inspect `git config --local --get core.hooksPath`; stop if a local override does not invoke the global commit policy.
 2. Preserve unrelated and pre-existing changes. Do not switch branches with an unresolved dirty worktree.
 3. Fetch `origin` before starting and determine whether `dev`, `master`, or both exist on the remote. Reuse the local task branch when present; otherwise create it from the repository's established base. If the base is genuinely ambiguous, ask.
-4. Ensure the checked-out branch matches `KON-[0-9]+-[a-z0-9]+(?:-[a-z0-9]+)*` before editing or committing.
+4. Ensure a regular checkout branch matches `KON-[0-9]+(?:-[a-z0-9]+(?:-[a-z0-9]+)*)?`. In a linked worktree, require `KON-[0-9]+-[a-z0-9]+(?:-[a-z0-9]+)*`.
 
 ## Commit in the Feature Branch
 
