@@ -1,0 +1,4 @@
+interface:
+  display_name: "SSH Development"
+  short_description: "Inspect remote Dokku Rails apps safely over SSH"
+  default_prompt: "Use $ssh-development to inspect a remote Dokku Rails application with read-only runtime and database commands."
