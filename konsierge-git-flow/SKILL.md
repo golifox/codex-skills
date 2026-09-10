@@ -1,13 +1,13 @@
 ---
 name: konsierge-git-flow
-description: "Apply the Konsierge branch, commit, target-branch push, and conditional deployment-verification workflow. Use for every Git delivery task in a Konsierge repository: work and commit in a KON ticket branch, require a descriptive suffix for linked worktrees, deliver to the available targets, and never push a feature branch."
+description: "Use for every Git delivery task in a Konsierge repository, including isolated worktree implementation, commit transfer to the task branch, target integration, pushes, and conditional deployment verification."
 ---
 
 # Konsierge Git Flow
 
 Treat this as the standing delivery workflow for Konsierge repositories.
 
-This skill owns branch topology, commits, target integration, pushes, and delivery evidence. For commit-message selection and formatting, use [`konsierge-commit-conventions`](../konsierge-commit-conventions/SKILL.md). That skill generates text only; this skill controls when and where the commit is created.
+This skill owns worktree isolation, branch topology, commit transfer, target integration, pushes, cleanup, and delivery evidence. For commit-message selection and formatting, use [`konsierge-commit-conventions`](../konsierge-commit-conventions/SKILL.md). That skill generates text only; this skill controls when and where the commit is created.
 
 The global commit hook first identifies the repository. Repositories with any remote hosted exactly at `gitlab.konsierge.com`, or repositories explicitly configured with `git config konsierge.commitPolicy true`, use the KON rules below. Other repositories keep unrestricted branch names and require Conventional Commit subjects such as `feat: add export` or `fix(api): reject invalid input`; real Git merge and revert operations retain their generated subjects.
 
@@ -17,37 +17,40 @@ A repository-local `core.hooksPath` overrides Git's global value before any glob
 
 ## Hard Rules
 
-- Develop the feature and create its original commits in a ticket branch. A regular checkout may use either `KON-XXXX` or `KON-XXXX-<kebab-case-description>`. A linked worktree must use the descriptive form, for example `KON-0000-passes-cancellation` or `KON-1234-authorization-implementation`, so concurrent worktrees remain distinguishable.
-- Use the concrete ticket from the request or current branch. When none exists, use `KON-0000`; add a kebab-case description whenever the work is performed in a linked worktree.
+- Keep one persistent task branch: use the ticket branch named by the request or current context, for example `KON-1234`; when none exists, use `KON-0000`. `KON-1234` is an example, not a fixed branch name.
+- Perform implementation in a separate linked worktree on a temporary descriptive branch such as `KON-1234-authorization-implementation`. Create the implementation commits there, then cherry-pick them in order into the persistent task branch. Never merge the temporary branch into the task branch.
+- Temporary worktree branches are session-owned safety refs, not delivery branches. Never push them. Remove their worktrees and branches only after proving that every implementation commit has an equivalent cherry-picked commit in the persistent task branch and no unique work remains.
 - Treat the `contracts` tree as out-of-scope by default. When the user did not explicitly ask to change contracts, ignore `contracts` completely: do not mention it in status/final reports, do not treat its dirty state as relevant, and do not include it in staging, commits, checks, or delivery decisions.
-- Never commit feature work directly to `dev` or `master`.
-- Never push task branches or their `-dev` delivery branches under any circumstance.
-- By default, merge the completed feature branch locally into every delivery target that exists on `origin`: both `dev` and `master`, only `dev`, or only `master`.
-- When `KON-XXXX-dev` already exists locally or on `origin`, or a direct `KON-XXXX` -> `dev` merge has conflicts that cannot be resolved safely, use the split delivery topology: merge `KON-XXXX-dev` into `dev` and the original `KON-XXXX` into `master`.
+- Never commit task work directly to `dev` or `master`.
+- Never push persistent task branches, temporary worktree branches, or their `-dev` delivery branches under any circumstance.
+- By default, merge the persistent task branch locally into every delivery target that exists on `origin`: both `dev` and `master`, only `dev`, or only `master`.
+- When `KON-XXXX-dev` already exists locally or on `origin`, or a direct `KON-XXXX` -> `dev` merge has conflicts that cannot be resolved safely, use the split delivery topology: merge `KON-XXXX-dev` into `dev` and the persistent `KON-XXXX` into `master`.
 - Treat `KON-XXXX-dev` only as the `dev` integration branch. Update it from `origin/dev`; never merge it into `master`.
 - Push only the delivery targets that exist on `origin`, after their local merges and checks succeed. If only `dev` exists, push only `dev`. If only `master` exists, push only `master`. Stop and ask for direction when neither exists.
 - When both targets exist, always push them sequentially: push `dev`, require its successful staging deployment, then push `master` and require its successful production deployment. Never push both targets together or start their pipelines concurrently; their parallel test jobs share temporary database infrastructure and can delete each other's databases.
-- Monitor pipelines and deployments only when the user explicitly requests monitoring or when both `dev` and `master` are being pushed. For a single-target push, verify the remote SHA and feature-commit containment, but do not monitor its deployment unless explicitly requested.
+- Monitor pipelines and deployments only when the user explicitly requests monitoring or when both `dev` and `master` are being pushed. For a single-target push, verify the remote SHA and task-commit containment, but do not monitor its deployment unless explicitly requested.
 - Never force-push, rebase, or rewrite `dev` or `master`.
 - Keep every merge commit message generated by Git. Never pass `-m`/`--message` to `git merge` or edit the default merge message.
-- Merge only a local named task-branch ref. Never merge `FETCH_HEAD`, a raw commit SHA, a filesystem path, or a repository URL into a delivery branch. When importing a branch from another worktree or clone, fetch it, create the correctly named local branch ref, and merge that ref.
-- Before pushing a delivery branch, inspect the merge subject. It must name only the task branch, for example `Merge branch 'KON-0000-passes-cancellation' into dev`, and must not contain `FETCH_HEAD`, `.worktrees/`, `file://`, a repository URL, or an absolute filesystem path.
+- Merge only the persistent local named task-branch ref. Never merge a temporary worktree branch, `FETCH_HEAD`, a raw commit SHA, a filesystem path, or a repository URL into a delivery branch.
+- Before pushing a delivery branch, inspect the merge subject. It must name only the persistent task branch, for example `Merge branch 'KON-0000' into dev`, and must not name the temporary worktree branch or contain `FETCH_HEAD`, `.worktrees/`, `file://`, a repository URL, or an absolute filesystem path.
 - When deployment monitoring is required, treat delivery as incomplete until GitLab MCP confirms every monitored target's exact pushed SHA deployed successfully to its environment.
 
 ## Prepare
 
-1. Read repository instructions and inspect branch, status, staged/unstaged diffs, upstreams, recent subjects, and remote target state.
+1. Read repository instructions and inspect all worktrees, branches, status, staged/unstaged diffs, upstreams, recent subjects, and remote target state.
    Also inspect `git config --local --get core.hooksPath`; stop if a local override does not invoke the global commit policy.
-2. Preserve unrelated and pre-existing changes. Do not switch branches with an unresolved dirty worktree.
-3. Fetch `origin` before starting and determine whether `dev`, `master`, or both exist on the remote. Reuse the local task branch when present; otherwise create it from the repository's established base. If the base is genuinely ambiguous, ask.
-4. Ensure a regular checkout branch matches `KON-[0-9]+(?:-[a-z0-9]+(?:-[a-z0-9]+)*)?`. In a linked worktree, require `KON-[0-9]+-[a-z0-9]+(?:-[a-z0-9]+)*`.
+2. Preserve unrelated and pre-existing changes. Do not switch branches with an unresolved dirty worktree. The persistent task branch must be available in a clean regular checkout before commit transfer; if it is checked out with unrelated changes, preserve them and stop before cherry-picking.
+3. Fetch `origin` before starting and determine whether `dev`, `master`, or both exist on the remote. Resolve the persistent task branch from the request or current context; otherwise use `KON-0000`. Reuse it when present, or create it from the repository's established base. If the base is genuinely ambiguous, ask.
+4. Create a separate linked implementation worktree from the current persistent task branch tip. Its temporary branch must match `KON-[0-9]+-[a-z0-9]+(?:-[a-z0-9]+)*` and describe the work clearly. Do not use detached HEAD.
 
-## Commit in the Feature Branch
+## Implement and Transfer Commits
 
-1. Implement and verify the requested work.
-2. Build atomic commits using [`konsierge-commit-conventions`](../konsierge-commit-conventions/SKILL.md). Nearby repository history remains authoritative when it establishes a more specific convention.
-3. Confirm the feature worktree is clean and relevant checks pass.
-4. Do not push the feature branch.
+1. Implement and verify the requested work only in the separate implementation worktree.
+2. Build atomic commits on its temporary descriptive branch using [`konsierge-commit-conventions`](../konsierge-commit-conventions/SKILL.md). Nearby repository history remains authoritative when it establishes a more specific convention.
+3. Confirm the implementation worktree is clean and relevant checks pass. Record the ordered source commit SHAs.
+4. In the clean regular checkout, switch to the persistent task branch and confirm its expected tip. Cherry-pick every source commit in order. Record the `source SHA -> task SHA` mapping because cherry-pick normally changes commit IDs.
+5. Run relevant checks on the persistent task branch. Use `git cherry <task-branch> <temporary-branch>` or stable patch IDs to prove every source commit is patch-equivalent to a task-branch commit; no source commit may remain marked `+`.
+6. Do not push either branch. Keep the implementation worktree and temporary branch until target integration succeeds, so their source SHAs remain recoverable.
 
 ## Merge Locally
 
@@ -55,44 +58,36 @@ Fetch `origin` again immediately before merging. First check which delivery targ
 
 ### Default topology
 
-When no `KON-XXXX-dev` branch exists and the feature branch merges into `dev` without unsafe conflicts:
+When no `KON-XXXX-dev` branch exists and the persistent task branch merges into `dev` without unsafe conflicts:
 
-1. Switch to `dev`, fast-forward it to `origin/dev`, merge the feature branch with the repository's established merge style, and run relevant checks.
-2. Switch to `master`, fast-forward it to `origin/master`, merge the same feature branch, and run relevant checks.
+1. Switch to `dev`, fast-forward it to `origin/dev`, merge the persistent task branch with the repository's established merge style, and run relevant checks.
+2. Switch to `master`, fast-forward it to `origin/master`, merge the same persistent task branch, and run relevant checks.
 3. Stop on conflicts, failed checks, non-fast-forward target state, or unexpected commits. Do not push a partial delivery.
 
 ### Split `-dev` topology
 
-Use this path when `KON-XXXX-dev` already exists or the direct feature-to-`dev` merge cannot be resolved safely. This is used by repositories such as CRM when `dev` and `master` require different integration branches.
+Use this path when `KON-XXXX-dev` already exists or the direct task-to-`dev` merge cannot be resolved safely. This is used by repositories such as CRM when `dev` and `master` require different integration branches.
 
 1. Abort the conflicted direct merge into `dev`, if one is in progress.
 2. Check out the existing `KON-XXXX-dev` branch, including from `origin/KON-XXXX-dev` when only the remote branch exists; otherwise create it from `origin/dev`.
-3. Merge the current `origin/dev` into `KON-XXXX-dev`; do not rebase or reset the delivery branch. Bring over any missing feature commits from the original `KON-XXXX` with explicit cherry-picks, preserving the original feature branch for `master`.
+3. Merge the current `origin/dev` into `KON-XXXX-dev`; do not rebase or reset the delivery branch. Bring over any missing task commits from the persistent `KON-XXXX` with explicit cherry-picks, preserving the persistent task branch for `master`.
 4. Resolve integration differences only on `KON-XXXX-dev`, run the relevant checks there, then fast-forward local `dev` to `origin/dev` and merge `KON-XXXX-dev` into `dev`.
-5. Fast-forward local `master` to `origin/master` and merge the original `KON-XXXX` into `master`.
-6. Never merge `KON-XXXX-dev` into `master` or the original `KON-XXXX` into `dev` after selecting this topology. Stop if either integration still cannot be resolved safely.
+5. Fast-forward local `master` to `origin/master` and merge the persistent `KON-XXXX` into `master`.
+6. Never merge `KON-XXXX-dev` into `master` or the persistent `KON-XXXX` into `dev` after selecting this topology. Stop if either integration still cannot be resolved safely.
 
 Prefer explicit merge commits when that matches the repository history:
 
 ```sh
 # Default topology and `master` in split topology
-GIT_MERGE_AUTOEDIT=no git merge --no-ff KON-0000-passes-cancellation
+GIT_MERGE_AUTOEDIT=no git merge --no-ff KON-0000
 
 # `dev` in split topology
-GIT_MERGE_AUTOEDIT=no git merge --no-ff KON-0000-passes-cancellation-dev
+GIT_MERGE_AUTOEDIT=no git merge --no-ff KON-0000-dev
 ```
 
 `GIT_MERGE_AUTOEDIT=no` only suppresses the editor; it preserves Git's default merge message. Do not replace it with a custom message.
 
-If the task branch came from another worktree or clone, bind the fetched object to its descriptive name before merging:
-
-```sh
-git fetch /absolute/path/to/source-worktree KON-0000-passes-cancellation
-git branch --force KON-0000-passes-cancellation FETCH_HEAD
-GIT_MERGE_AUTOEDIT=no git merge --no-ff KON-0000-passes-cancellation
-```
-
-Never use `git merge FETCH_HEAD` in the delivery branch: Git can expose the source filesystem path in the generated merge subject.
+Never use `git merge FETCH_HEAD` in the delivery branch: Git can expose a source filesystem path in the generated merge subject. Commit transfer from the implementation worktree belongs in the persistent task branch and uses cherry-pick, not merge.
 
 ## Push Targets
 
@@ -115,15 +110,15 @@ When both local target branches are correct and verified, deliver sequentially:
 
 6. Monitor the exact pushed `master` SHA and require `deploy_production` to succeed.
 
-When only one target exists, fetch `origin`, confirm the local target still descends from its remote counterpart, push only that target, and verify its remote SHA plus feature-commit containment. Do not monitor its pipeline or deployment unless the user explicitly requested monitoring.
+When only one target exists, fetch `origin`, confirm the local target still descends from its remote counterpart, push only that target, and verify its remote SHA plus task-commit containment. Do not monitor its pipeline or deployment unless the user explicitly requested monitoring.
 
-Never include the feature branch in a push refspec. Never use one atomic or multi-ref push for `dev` and `master`. If either remote target advanced, fetch, reconcile locally, rerun affected checks, then retry or report the blocker.
+Never include the persistent task branch or temporary worktree branch in a push refspec. Never use one atomic or multi-ref push for `dev` and `master`. If either remote target advanced, fetch, reconcile locally, rerun affected checks, then retry or report the blocker.
 
-Verify every pushed remote target SHA and feature-commit containment after the push.
+Verify every pushed remote target SHA and task-commit containment after the push.
 
 ## Monitor Deployments When Required
 
-Enter this section only when the user explicitly requests deployment monitoring or both `dev` and `master` are being pushed. Otherwise stop after remote SHA and containment verification.
+Enter this section only when the user explicitly requests deployment monitoring or both `dev` and `master` are being pushed. Otherwise continue directly to implementation-worktree cleanup after remote SHA and containment verification.
 
 Use GitLab MCP to verify deployments. Resolve `project_id` from the `origin` URL; do not ask for it when it is available locally. Activate the `pipelines` and `ci` tool categories with `discover_tools` when their tools are not already available.
 
@@ -142,4 +137,14 @@ Monitor each pushed target before pushing the next one:
 
 On failure, inspect the failed deployment job with `get_pipeline_job` or `get_pipeline_job_output` and report the pipeline, job, environment, SHA, status, URL, and concise failure evidence. Do not claim delivery succeeded.
 
-Report feature commits, merge commits for existing targets, remote SHAs, checks, and final worktree state. When monitoring was required, also report each monitored pipeline/job or deployment ID, URL, and final status.
+## Clean Up the Implementation Worktree
+
+Cleanup is part of delivery, not optional housekeeping. Perform it only after every requested target has been integrated and verified locally, and after any authorized pushes have been verified.
+
+1. Recheck the recorded `source SHA -> task SHA` mapping and prove the temporary branch has no patch absent from the persistent task branch. Stop when `git cherry <task-branch> <temporary-branch>` contains any `+` entry.
+2. Confirm the implementation worktree is clean. Report and preserve any uncommitted file instead of removing the worktree.
+3. Remove the exact session-owned implementation worktree without force, then prune its worktree metadata.
+4. Delete only its exact temporary branch. Because cherry-pick changes ancestry, normal `git branch -d` may reject a fully transferred branch; `git branch -D` is allowed only after steps 1-3 prove the branch is session-owned, clean, patch-equivalent, and no longer checked out.
+5. Verify the temporary worktree path and branch are gone.
+
+Report the persistent task branch, source-to-task SHA mapping, merge commits for existing targets, remote SHAs, checks, pushes, and final worktree state. When monitoring was required, also report each monitored pipeline/job or deployment ID, URL, and final status.
