@@ -144,7 +144,7 @@ Cleanup is part of delivery, not optional housekeeping. Perform it only after ev
 1. Recheck the recorded `source SHA -> task SHA` mapping and prove the temporary branch has no patch absent from the persistent task branch. Stop when `git cherry <task-branch> <temporary-branch>` contains any `+` entry.
 2. Confirm the implementation worktree is clean. Report and preserve any uncommitted file instead of removing the worktree.
 3. Remove the exact session-owned implementation worktree without force, then prune its worktree metadata.
-4. Delete only its exact temporary branch. Because cherry-pick changes ancestry, normal `git branch -d` may reject a fully transferred branch; `git branch -D` is allowed only after steps 1-3 prove the branch is session-owned, clean, patch-equivalent, and no longer checked out.
+4. Delete only its exact temporary branch. Because cherry-pick changes ancestry, first repoint the no-longer-checked-out temporary branch to the persistent task branch with `git branch --force <temporary-branch> <task-branch>`, then delete it with `git branch -d <temporary-branch>`. Do not use `git branch -D`.
 5. Verify the temporary worktree path and branch are gone.
 
 Report the persistent task branch, source-to-task SHA mapping, merge commits for existing targets, remote SHAs, checks, pushes, and final worktree state. When monitoring was required, also report each monitored pipeline/job or deployment ID, URL, and final status.
