@@ -24,6 +24,31 @@ This is a compressed entrypoint. The previous full guide is preserved at `refere
 - When Rails API work also changes prose documentation or an existing `contracts/` schema tree, load and follow `api-documentation`.
 - Preserve user-owned worktree changes. Report blocked validation honestly instead of pretending a tool ran.
 
+## Ruby Interfaces and Layer Boundaries
+
+- Do not use `private_class_method`. When a class needs private class methods, place its class-method API inside one `class << self` block: public methods first, then `private`, then private methods. Convert existing `def self.method` declarations in that class to this style when introducing private class methods.
+- Use meaningful operation or result names instead of `.call` for application-owned services, queries, mappers, and value objects. Preserve `.call` where required by a library or framework interface.
+- Prefer dependencies toward lower layers over peer-to-peer orchestration. In particular, do not chain mapper classes; shared deterministic concepts belong in a value object, and record-owned data or predicates may belong in the model. Do not move orchestration into models merely to avoid a service dependency.
+- Keep a simple calculation or conditional selection used in one place in a named local variable next to its use, for example `refunded_amount_rate = case ... in ... else ... end`. Do not extract a private method just to name that value or shorten the caller. Inline single-use pass-through methods; remove their unused definitions after inlining. Extract a method only for reuse or a substantial, independently meaningful responsibility.
+- Put business values, reference data, state groups, and business limits in `Store`. Put reusable type and format constraints in `Types`, implemented with dry-types; use constructor types when normalization or sanitization is part of the input type. Do not scatter these data constants or regular expressions through services, mappers, controllers, or models.
+- When relocating constants, inspect every consumer and preserve validation, sanitization, inheritance, and loading behavior. A whole-string validation type does not replace substring redaction. Keep historical migrations self-contained rather than coupling them to the current `Store` or `Types`.
+
+```ruby
+class SomeService
+  class << self
+    def perform
+      # Public operation
+    end
+
+    private
+
+    def eligible?
+      # Local predicate
+    end
+  end
+end
+```
+
 ## Minimal Workflow
 
 1. Identify the exact artifact or behavior the user wants changed, generated, validated, or reviewed.

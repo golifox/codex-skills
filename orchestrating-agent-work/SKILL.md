@@ -15,6 +15,8 @@ The primary agent owns goals, dependencies, decisions, integration, and delivery
 - For architecture, several independent components, or work that cannot fit safely in one context, write an approved plan, isolate the work when useful, and delegate only independent, bounded streams.
 - Route discovery to `codebase_explorer`, cross-cutting design to `architect`, implementation to `implementer` or a domain specialist, independent review to `code_reviewer`, and acceptance checks to `verifier`. Use security or migration specialists when those boundaries are material.
 - Give coding agents an explicit worktree, branch, file ownership, acceptance criteria, verification commands, report path, and warning that concurrent user/agent changes must be preserved.
+- When creating a new isolated worktree, copy the main repository's local `.env` into it before setup or tests by running `cp .env <worktree-path>/.env` from the main repository root. Do not create a placeholder when the main checkout has no `.env`, and never commit the copied file.
+- If `.gitmodules` declares the `contracts` submodule, initialize it in the new worktree with `git submodule update --init --recursive contracts`, then run `bin/contracts-update` from the worktree root before running tests. This setup does not make `contracts` part of the task scope; do not stage or commit it unless the task explicitly includes contract changes.
 - Give every delegated task a minimal skill allowlist in its brief. Use a context budget, not a hard ban:
   - discovery/review: one task-specific skill at most, plus project instructions;
   - routine implementation: the domain skill and one workflow skill (for example, `rails` + `test-driven-development`);

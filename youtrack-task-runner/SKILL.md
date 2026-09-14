@@ -28,8 +28,10 @@ Before reading or editing target project files:
 1. Resolve the target repository and base branch from the trusted registry.
 2. Create or reuse a task-owned worktree for this task run.
 3. Create or checkout a branch whose name is exactly the YouTrack id, preserving case, for example `ABC-42` for `ABC-42`. Do not add `-dev`, a username, a slug, or a descriptive suffix.
-4. Record repository, worktree path, branch, base SHA, and current SHA in durable task state.
-5. Refuse to proceed if the checked-out branch does not exactly equal the ticket id, if the worktree is shared, or if the branch is based on an unexpected revision.
+4. When creating a new worktree, copy the main repository's local `.env` into it before setup or tests by running `cp .env <worktree-path>/.env` from the main repository root. Do not create a placeholder when the main checkout has no `.env`, and never commit the copied file.
+5. If `.gitmodules` declares the `contracts` submodule, initialize it in the new worktree with `git submodule update --init --recursive contracts`, then run `bin/contracts-update` from the worktree root before running tests. This setup does not make `contracts` part of the task scope; do not stage or commit it unless the trusted policy explicitly allows contract changes.
+6. Record repository, worktree path, branch, base SHA, and current SHA in durable task state.
+7. Refuse to proceed if the checked-out branch does not exactly equal the ticket id, if the worktree is shared, or if the branch is based on an unexpected revision.
 
 The branch rule applies to the target project where the ticket is implemented. It does not require the control-plane/web UI repository itself to use the ticket branch.
 
