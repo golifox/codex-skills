@@ -13,6 +13,7 @@ Usage: bin/codex-skills <command>
 Commands:
   status  Show the current and remote skill revisions.
   update  Fast-forward to origin/master after ensuring the checkout is clean.
+  validate Validate skill frontmatter and local Markdown links (requires PyYAML).
 USAGE
 }
 
@@ -36,18 +37,7 @@ ensure_clean_worktree() {
 }
 
 validate_skills() {
-  local validator="$REPOSITORY_DIR/.system/skill-creator/scripts/quick_validate.py"
-  local skill_directory
-
-  if [[ ! -f "$validator" ]]; then
-    printf 'codex-skills: validator unavailable; skipped skill validation\n' >&2
-    return
-  fi
-
-  for skill_directory in "$REPOSITORY_DIR"/*; do
-    [[ -f "$skill_directory/SKILL.md" ]] || continue
-    python3 "$validator" "$skill_directory" >/dev/null
-  done
+  python3 "$REPOSITORY_DIR/scripts/validate_skills.py" "$REPOSITORY_DIR"
 }
 
 show_status() {
@@ -74,6 +64,9 @@ update() {
 }
 
 case "${1:-}" in
+  validate)
+    validate_skills
+    ;;
   status)
     show_status
     ;;
