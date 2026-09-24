@@ -59,37 +59,13 @@ if [[ -n "$git_dir" && -n "$common_dir" && "$git_dir" != "$common_dir" ]]; then
   is_linked_worktree=true
 fi
 
-contains_forbidden_merge_source() {
-  [[ "$subject" == *FETCH_HEAD* ]] ||
-    [[ "$subject" == *'.worktrees/'* ]] ||
-    [[ "$subject" =~ (https?|ssh|file):// ]] ||
-    [[ "$subject" =~ git@[^[:space:]]+: ]] ||
-    [[ "$subject" =~ (^|[[:space:]\'\"])[0-9a-fA-F]{7,40}([[:space:]\'\"]|$) ]] ||
-    [[ "$subject" =~ (^|[[:space:]\'\"])/(Users|home|tmp|private|var|opt|srv)/ ]]
-}
+if $is_linked_worktree && [[ "$branch" =~ ^(dev|master|KON-[0-9]+(-dev)?)$ ]]; then
+  fail "persistent task and delivery branches belong only in the main checkout"
+fi
 
 if $merge_in_progress; then
-  [[ "$subject" == Merge\ * ]] || fail "merge commits must retain Git's generated subject"
-  contains_forbidden_merge_source && fail "merge subject contains FETCH_HEAD, a SHA, URL, or filesystem path"
-
-  if [[ "$branch" == dev || "$branch" == master ]]; then
-    merge_source=$(printf '%s\n' "$subject" | sed -nE "s/^Merge branch '([^']+)'( into (dev|master))?$/\\1/p")
-    [[ -n "$merge_source" ]] || fail "merge into $branch must use Git's named branch subject"
-    merge_target=$(printf '%s\n' "$subject" | sed -nE "s/^Merge branch '[^']+' into (dev|master)$/\\1/p")
-    [[ -z "$merge_target" || "$merge_target" == "$branch" ]] || fail "merge subject target does not match current branch $branch"
-    [[ "$merge_source" =~ $ticket_branch_pattern ]] ||
-      fail "merge into $branch must come from a named KON branch"
-    if [[ "$branch" == master && "$merge_source" =~ ^KON-[0-9]+-dev$ ]]; then
-      fail "KON delivery branches ending in -dev must not be merged into master"
-    fi
-    exit 0
-  fi
-
-  [[ "$branch" =~ $ticket_branch_pattern ]] || fail "merge commits require a KON ticket branch"
-  if $is_linked_worktree; then
-    [[ "$branch" =~ $worktree_branch_pattern ]] || fail "linked worktrees require KON-<number>-<description> branch names"
-  fi
-  exit 0
+  script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+  exec python3 "$script_dir/delivery-policy" check-merge "$branch" "$message_file"
 fi
 
 [[ "$branch" != dev && "$branch" != master ]] || fail "ordinary commits directly on $branch are not allowed"

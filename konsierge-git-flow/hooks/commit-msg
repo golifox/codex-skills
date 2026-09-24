@@ -21,6 +21,21 @@ if [ "$hook_name" = commit-msg ]; then
     --commit-msg-filename "$1" || exit $?
 fi
 
+if [ "$hook_name" = pre-push ]; then
+  skill_dir=${KONSIERGE_GIT_FLOW_SKILL_DIR:-"$HOME/.codex/skills/konsierge-git-flow"}
+  input_file=$(mktemp "${TMPDIR:-/tmp}/konsierge-pre-push.XXXXXX")
+  trap 'rm -f "$input_file"' EXIT
+  trap 'exit 1' HUP INT TERM
+  cat > "$input_file"
+  python3 "$skill_dir/scripts/delivery-policy" check-push "$@" < "$input_file"
+  common_dir=$(git rev-parse --path-format=absolute --git-common-dir)
+  repository_hook="$common_dir/hooks/pre-push"
+  if [ -x "$repository_hook" ]; then
+    "$repository_hook" "$@" < "$input_file"
+  fi
+  exit 0
+fi
+
 common_dir=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)
 repository_hook="$common_dir/hooks/$hook_name"
 

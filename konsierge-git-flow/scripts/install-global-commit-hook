@@ -17,11 +17,21 @@ command -v pre-commit >/dev/null 2>&1 || {
   exit 1
 }
 
+command -v python3 >/dev/null 2>&1 || {
+  echo 'python3 is not installed or not present in PATH' >&2
+  exit 1
+}
+
 mkdir -p "$hooks_dir"
 
 for hook_name in $hook_names; do
   target_hook="$hooks_dir/$hook_name"
   if [[ -e "$target_hook" ]] && ! cmp -s "$source_hook" "$target_hook"; then
+    # Upgrade only the exact previously installed dispatcher; preserve custom hooks.
+    old_digest=$(shasum -a 256 "$target_hook" | cut -d ' ' -f 1)
+    if [[ "$old_digest" == 4360b4b9436a24f18874b3f10b2f61b79e0752d75d4257949756040cf34f2015 ]]; then
+      continue
+    fi
     printf 'Refusing to replace existing global hook: %s\n' "$target_hook" >&2
     exit 1
   fi

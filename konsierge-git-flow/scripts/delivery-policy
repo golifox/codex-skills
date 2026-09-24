@@ -1,0 +1,153 @@
+#!/usr/bin/env python3
+"""Validate Konsierge delivery history and record observed dev conflicts."""
+
+import json
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+
+def git(*args, check=True):
+    return subprocess.run(["git", *args], text=True, capture_output=True, check=check)
+
+
+def fail(message):
+    raise ValueError(message)
+
+
+def managed_repository():
+    if git("config", "--bool", "--get", "konsierge.commitPolicy", check=False).stdout.strip() == "true":
+        return True
+    for remote in git("remote").stdout.splitlines():
+        for url in git("remote", "get-url", "--all", remote).stdout.splitlines():
+            match = re.match(r"(?:[a-z][a-z0-9+.-]*://)?(?:[^/@]+@)?([^/:]+)[:/]", url)
+            if match and match[1] == "gitlab.konsierge.com":
+                return True
+    return False
+
+
+def resolve(ref):
+    return git("rev-parse", "--verify", ref + "^{commit}").stdout.strip()
+
+
+def ancestor(base, tip):
+    result = git("merge-base", "--is-ancestor", base, tip, check=False)
+    if result.returncode not in (0, 1):
+        fail(result.stderr.strip())
+    return result.returncode == 0
+
+
+def records_path():
+    return Path(git("rev-parse", "--path-format=absolute", "--git-common-dir").stdout.strip()) / "konsierge-dev-conflicts"
+
+
+def record_conflict(task):
+    if not re.fullmatch(r"KON-[0-9]+", task):
+        fail("expected KON-<number>")
+    if git("symbolic-ref", "--short", "HEAD").stdout.strip() != "dev":
+        fail("record the direct task merge conflict while checked out on dev")
+    task_sha = resolve("refs/heads/" + task)
+    if resolve("MERGE_HEAD") != task_sha or not git("ls-files", "--unmerged").stdout:
+        fail("expected an unresolved direct merge of the current task branch into dev")
+    record = {"task": task, "task_sha": task_sha, "dev_sha": resolve("HEAD")}
+    directory = records_path()
+    directory.mkdir(exist_ok=True)
+    path = directory / (task + "-" + record["dev_sha"] + "-" + task_sha + ".json")
+    path.write_text(json.dumps(record) + "\n")
+    print("Recorded direct dev conflict: " + str(path))
+
+
+def require_conflict(source, first_parent, second_parent):
+    task = source.removesuffix("-dev")
+    task_sha = resolve("refs/heads/" + task)
+    for path in records_path().glob(task + "-*.json"):
+        record = json.loads(path.read_text())
+        if (record["task"] == task and record["task_sha"] == task_sha
+                and ancestor(record["dev_sha"], first_parent)
+                and ancestor(record["dev_sha"], second_parent)):
+            return
+    fail(source + " requires a recorded direct dev conflict for the current task tip; run delivery-policy record-dev-conflict during that conflict")
+
+
+def validate_merge(subject, first_parent, second_parent, target=None, current=False):
+    match = re.fullmatch(r"Merge branch '(KON-[0-9]+(?:-dev)?)'(?: into (dev|master))?", subject)
+    if not match:
+        fail("forbidden merge subject: " + subject)
+    source, named_target = match.groups()
+    actual_target = named_target or "master"
+    if current and actual_target != target:
+        fail("merge subject target does not match current branch")
+    if source.endswith("-dev"):
+        if actual_target != "dev" or target == "master":
+            fail("KON-<number>-dev may only be delivered to dev")
+        require_conflict(source, first_parent, second_parent)
+    if current and resolve("refs/heads/" + source) != second_parent:
+        fail("merge must use the named local task branch tip")
+
+
+def check_current_merge(branch, message_file):
+    common = git("rev-parse", "--path-format=absolute", "--git-common-dir").stdout.strip()
+    directory = git("rev-parse", "--path-format=absolute", "--git-dir").stdout.strip()
+    if directory != common or branch not in ("dev", "master"):
+        fail("merge is allowed only on dev/master in the main checkout; transfer worktree commits with cherry-pick")
+    parents = git("rev-parse", "MERGE_HEAD").stdout.splitlines()
+    if len(parents) != 1:
+        fail("octopus merges are not allowed")
+    subject = Path(message_file).read_text().splitlines()[0]
+    validate_merge(subject, resolve("HEAD"), parents[0], branch, current=True)
+
+
+def check_push(remote_url):
+    updates = [line.split() for line in sys.stdin if line.strip()]
+    if not updates:
+        return
+    if len(updates) != 1:
+        fail("push dev and master sequentially, one target per push")
+    local_ref, local_sha, remote_ref, remote_sha = updates[0]
+    if remote_ref not in ("refs/heads/dev", "refs/heads/master"):
+        fail("only dev/master may be pushed; task and temporary branches stay local")
+    if local_ref != remote_ref:
+        fail("push the matching local dev/master branch, not a SHA or temporary branch")
+    if not local_sha.strip("0") or not remote_sha.strip("0"):
+        fail("delivery targets must already exist on the remote and may not be deleted")
+    if not ancestor(remote_sha, local_sha):
+        fail("non-fast-forward delivery is forbidden; fetch and reconcile first")
+    # Exclude history already published on any remote branch, not just this target.
+    published = {remote_sha}
+    for line in git("ls-remote", "--heads", remote_url).stdout.splitlines():
+        sha, _ = line.split()
+        if git("cat-file", "-e", sha + "^{commit}", check=False).returncode == 0:
+            published.add(sha)
+    commits = git("rev-list", "--min-parents=2", local_sha, "--not", *sorted(published)).stdout.splitlines()
+    for commit in commits:
+        parents = git("show", "-s", "--format=%P", commit).stdout.split()
+        if len(parents) != 2:
+            fail("octopus merge in outgoing history: " + commit)
+        subject = git("show", "-s", "--format=%s", commit).stdout.strip()
+        try:
+            validate_merge(subject, *parents, target=remote_ref.removeprefix("refs/heads/"))
+        except ValueError as error:
+            fail(commit + ": " + str(error))
+
+
+def main():
+    if not managed_repository():
+        return
+    command, *args = sys.argv[1:]
+    if command == "check-merge" and len(args) == 2:
+        check_current_merge(*args)
+    elif command == "check-push" and len(args) == 2:
+        check_push(args[1])
+    elif command == "record-dev-conflict" and len(args) == 1:
+        record_conflict(args[0])
+    else:
+        fail("usage: delivery-policy check-merge BRANCH MESSAGE | check-push REMOTE URL | record-dev-conflict KON-NUMBER")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (ValueError, OSError, subprocess.CalledProcessError) as error:
+        print("delivery-policy: " + str(error), file=sys.stderr)
+        sys.exit(1)
