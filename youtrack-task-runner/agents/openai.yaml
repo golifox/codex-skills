@@ -1,4 +1,0 @@
-interface:
-  display_name: "YouTrack Task Runner"
-  short_description: "Execute YouTrack tasks in isolated ticket branches"
-  default_prompt: "Use $youtrack-task-runner for <TICKET-ID>"
