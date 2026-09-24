@@ -38,8 +38,8 @@ The primary agent owns goals, dependencies, decisions, integration, and delivery
 
 ## Durable coordination
 
-- Route each task as `{role, difficulty, skills}` instead of hardcoding model IDs.
-- Choose model and reasoning from uncertainty and blast radius, then record the result in the handoff: low-cost discovery/static inspection uses the lightest capable route; routine implementation and focused verification use a standard route; architecture, security, migrations, concurrency, and final reviews use the strongest appropriate route. Escalate only after a concrete signal (conflicting contract evidence, two failed root-cause passes, or a security/irreversible boundary), not merely because a task is unfinished. Respect role-enforced model settings; use explicit model/reasoning only where the runtime permits it.
+- Route each task as `{role, difficulty, skills, model, reasoning}` using the shared [model and reasoning policy](../../AGENT_MODELS.md): Luna for simple tasks and routine implementation, Sol for planning and complex work, Astra only for exceptional escalation. Default to low/medium reasoning; high needs a concrete task-specific reason. Never select xhigh, max, or ultra.
+- Record the selected model, effort, and any escalation reason in the handoff. Escalate only the unresolved subtask after improving its context and evidence. Respect role-enforced settings; use explicit model/reasoning only where the runtime permits it.
 - For concurrent plans, persist a compact registry containing work ID, plan path, worktree, branch, status, current task, agent/session identity, and last verified SHA. Keep detailed progress in each plan's own ledger.
 - Pass structured handoffs (`conventions`, `successes`, `failures`, `gotchas`, `commands`) or artifact paths, not accumulated transcript history.
 - Do not advance or redispatch work while its agent is pending or running. Resume from persisted state and verified artifacts.
