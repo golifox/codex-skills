@@ -35,6 +35,10 @@ Read [references/evidence-matrix.md](references/evidence-matrix.md) when perform
 
 ## Workflow
 
+Use [hypothesis-driven-debugging](../hypothesis-driven-debugging/SKILL.md) for the
+reproduction, experiment, and verification route. The steps below specialize it
+for MCP boundaries; reuse gathered evidence instead of restarting the investigation.
+
 1. Reconstruct one chronological trace from user message to final response. Correlate by request/conversation/tool-call IDs and timestamps when available.
 2. Write competing hypotheses before changing code. Examples: wrong tool choice, wrong arguments, stale catalog, access-policy omission, producer search bug, unsafe mapper, stale context, provider-data defect, or undeployed commit.
 3. Test the nearest observable boundary first. Prefer actual arguments/results and exact-SHA evidence over code-reading assumptions.

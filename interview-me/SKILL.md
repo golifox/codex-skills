@@ -1,72 +1,65 @@
 ---
 name: interview-me
-description: >
-  Extract real intent before planning or coding. Use when a Rails/Ruby or product request is
-  underspecified, conventional, ambiguous, or when the user says "interview me", "grill me",
-  "stress-test my thinking", or asks to clarify what should be built.
+description: Clarify an underspecified Rails/Ruby or product request before planning or coding. Use when intent or acceptance criteria are ambiguous, or the user asks for an interview, grilling, or a challenge to their assumptions.
 ---
 
 # Interview Me
 
-Use before specs, plans, or code when the requested outcome is not yet concrete.
-
-## Goal
-
-Find the gap between what the user asked for and what they actually need. Do this before Rails models, controllers, services, migrations, or tests exist, because changing intent after code is expensive.
+Identify the desired outcome, who needs it, why it matters, constraints, and
+observable acceptance criteria. Read project facts before asking about them.
 
 ## Process
 
-1. State a one-sentence hypothesis and confidence percentage.
-2. Ask one focused question at a time.
-3. Attach your best guess to every question.
-4. Listen for "should want" answers: scalable, clean, modern, dashboard, best practice.
-5. Restate intent in the user's words.
-6. Continue until the user explicitly confirms.
+1. State a short working interpretation and name the material unknowns.
+2. Group independent questions into a short round, usually two or three. Give a
+   recommended answer and reason for each; make assumptions explicit.
+3. Wait for prerequisite answers before asking dependent questions. If only one
+   decision blocks progress, ask that question alone.
+4. Replace vague goals such as "scalable" or "modern" with concrete scenarios,
+   expected results, limits, and failure behavior.
+5. Restate the outcome and decisions using the user's terms. Preserve answers
+   and authorization already given; do not ask the same thing in another form.
 
-## Question Format
+## Example Round
 
 ```text
-HYPOTHESIS: You want a Rails workflow that lets admins approve refund requests without manual console work.
-CONFIDENCE: ~45% - missing: actor, success criteria, and failure handling.
+Working interpretation: support agents need to approve refunds without console access.
+Missing decisions: who may approve and whether partial refunds are in scope.
 
-Q: Is the main user an internal support agent or the customer requesting the refund?
-GUESS: internal support agent, because the request mentions approval and likely maps to an admin controller plus policy.
+1. Who may approve: all support agents or supervisors?
+   Recommendation: supervisors, because this operation changes customer funds.
+2. Should this first version support partial refunds?
+   Recommendation: full refunds only, if that covers the current support cases.
 ```
 
-Ask only one question. Wait for the answer.
+An unanswered recommendation remains a proposal. Do not implement a materially
+different product or permission model on the assumption that silence accepts it.
+Continue independent, authorized investigation while waiting.
 
-## Restate Format
+## Stop and Handoff
 
-```markdown
-Here is what I now think you want:
+Stop when the outcome, scope, constraints, and acceptance criteria are concrete
+enough to act. Ask for confirmation only of material decisions the user has not
+resolved or actions beyond existing authorization. A clear request to implement,
+together with resolved decisions, is sufficient; no ritual final "yes" is needed.
+If the user asked only for an interview or design, finish with the resulting brief.
 
-- Outcome: support agents can approve or reject refund requests from the admin UI.
-- User: internal support agents.
-- Why now: console-driven refunds are slow and error-prone.
-- Success: request spec proves approve/reject states, policy gates, audit row, and gateway payload.
-- Constraint: do not change the customer-facing refund flow.
-- Out of scope: automatic refund risk scoring.
+Summarize the outcome, intended user, success criteria, constraints, out-of-scope
+work, and any remaining questions. Use a file when the work needs to survive a
+session boundary; otherwise keep the brief in the conversation.
 
-Yes / no / refine?
-```
-
-## Stop Rule
-
-Stop interviewing only when you can predict the user's reaction to the next three questions. If several rounds do not raise confidence, say what is missing and step back.
-
-## Rails Handoff
-
-After confirmation:
-
-- Use `idea-refine` if the direction still has multiple possible shapes.
-- Use `spec-driven-development` if the intent is concrete enough for acceptance criteria.
-- Use `planning-and-task-breakdown` after the spec exists.
-- Use `rails` whenever the result touches Ruby or Rails code.
+- Use [brainstorming](../brainstorming/SKILL.md) when clarified intent still leaves
+  consequential design alternatives. Carry the brief forward without repeating
+  the interview.
+- Use [incremental-implementation](../incremental-implementation/SKILL.md) for a
+  Rails/Ruby change spanning several layers.
+- Use [orchestrating-agent-work](../orchestrating-agent-work/SKILL.md) for work
+  requiring coordination or durable continuation.
+- Use [rails](../rails/SKILL.md) for Ruby/Rails implementation.
 
 ## Verification
 
-- Hypothesis and confidence were stated.
-- Every low confidence estimate named what is missing.
-- Questions were one at a time with guesses attached.
-- Restate included outcome, user, why now, success, constraint, and out of scope.
-- User gave an explicit yes before downstream work.
+- Questions concern material unknowns that project evidence cannot answer.
+- Independent questions are grouped; dependent questions follow their answers.
+- Recommendations are distinguishable from confirmed decisions.
+- The brief supplies acceptance criteria and preserves scope and authorization.

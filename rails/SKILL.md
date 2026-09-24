@@ -23,6 +23,7 @@ This is a compressed entrypoint. The previous full guide is preserved at `refere
 - For Rails interactive API documentation, keep the contract design-first and add only a presentation UI as described by `openapi-design-first`; do not switch the contract owner to generated rswag specs.
 - When Rails API work also changes prose documentation or an existing `contracts/` schema tree, load and follow `api-documentation`.
 - Preserve user-owned worktree changes. Report blocked validation honestly instead of pretending a tool ran.
+- For a bug or failing test whose cause is uncertain, use [hypothesis-driven-debugging](../hypothesis-driven-debugging/SKILL.md) before attempting a fix. Once the cause is supported, use the normal Rails implementation and regression-test workflow within the authorized scope.
 
 ## Ruby Interfaces and Layer Boundaries
 
